@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Events Room Presentation Demo</title>
+  <style>
+
+    :root{
+      --bg:#170f49;
+      --bg-soft:#211560;
+      --surface:#24185f;
+      --surface-2:#2c1d72;
+      --surface-3:#352688;
+      --line:rgba(255,255,255,.08);
+      --text:#ffffff;
+      --text-soft:#c7bdf7;
+      --white:#ffffff;
+      --accent:#a82e9b;
+      --accent-2:#d24896;
+      --shadow:0 26px 70px rgba(4, 2, 20, .40);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%}
+    body{
+      font-family:Avenir, "Avenir Next", Arial, Helvetica, sans-serif;
+      background:radial-gradient(circle at top left, #28197a 0%, var(--bg) 34%, #140c3f 100%);
+      color:var(--white);
+      overflow:hidden;
+    }
+    button,input,select{font:inherit}
+    .page{min-height:100vh;display:none;position:relative;overflow:hidden;background:var(--bg)}
+    .page.active{display:block}
+    .hidden{display:none !important}
+    .page::before,.page::after{
+      content:"";position:absolute;pointer-events:none;z-index:0
+    }
+    .page::before{
+      top:-10px;left:-8px;width:120px;height:120px;border-radius:0 0 100px 0;background:#7e39b3;
+    }
+    .page::after{
+      right:-10px;bottom:-8px;width:150px;height:120px;border-radius:100px 0 0 0;background:#bf318f;
+    }
+
+    .center-wrap{
+      min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at top left, #28197a 0%, var(--bg) 34%, #140c3f 100%);position:relative;
+    }
+    .center-wrap::after,.split-layout::after,.demo-shell::after,.confirm-shell::after,.countdown-shell::after,.share-shell::after,.goodbye-shell::after{
+      content:"";position:absolute;left:28px;bottom:28px;width:52px;height:52px;opacity:.8;
+      background:radial-gradient(circle, rgba(255,255,255,.72) 0 6px, transparent 7px) 0 0/24px 24px;
+      pointer-events:none;
+    }
+    .center-card{
+      position:relative;z-index:1;width:min(520px,100%);background:linear-gradient(180deg, rgba(45,30,114,.98), rgba(34,22,92,.98));color:var(--text);
+      border:1px solid var(--line);border-radius:28px;padding:32px;box-shadow:var(--shadow); backdrop-filter:blur(10px);
+    }
+    .title{font-size:30px;font-weight:800;margin:0 0 10px;color:var(--text)}
+    .subtitle{color:var(--text-soft);line-height:1.7;font-size:14px}
+    .field{margin-top:18px}
+    .field label{display:block;margin-bottom:8px;font-size:13px;color:var(--text-soft);font-weight:700}
+    .field input,.field select{
+      width:100%;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:#1b114c;color:var(--text);outline:none;
+    }
+    .field input:focus,.field select:focus{
+      border-color:var(--accent);box-shadow:0 0 0 3px rgba(158,29,151,.12)
+    }
+
+    .primary-btn,.secondary-btn{
+      border-radius:14px;padding:14px 16px;cursor:pointer;color:#fff;font-weight:800;border:none;transition:.18s ease;
+    }
+    .primary-btn{background:linear-gradient(135deg, var(--accent), var(--accent-2));box-shadow:0 14px 30px rgba(168,46,155,.34)}
+    .secondary-btn{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.16);color:#fff}
+    .primary-btn:hover,.secondary-btn:hover,.top-exit:hover{transform:translateY(-1px)}
+    .actions{margin-top:22px;display:flex;gap:12px;flex-wrap:wrap}
+
+    .split-layout{
+      min-height:100vh;display:grid;grid-template-columns:1fr 1fr;background:radial-gradient(circle at top left, #28197a 0%, var(--bg) 34%, #140c3f 100%);position:relative;
+    }
+    .split-pane{
+      position:relative;z-index:1;padding:44px;border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;justify-content:center;
+    }
+    .split-pane:last-child{border-right:none}
+    .choice-box{
+      background:linear-gradient(180deg, rgba(45,30,114,.96), rgba(34,22,92,.96));color:var(--text);border:1px solid var(--line);border-radius:28px;padding:28px;min-height:340px;
+      display:flex;flex-direction:column;justify-content:center;box-shadow:var(--shadow);backdrop-filter:blur(10px)
+    }
+    .choice-icon{font-size:64px;margin-bottom:16px}
+    .choice-title{font-size:30px;font-weight:800}
+    .choice-desc{color:var(--text-soft);line-height:1.8;margin-top:14px}
+    .link-row{margin-top:24px}
+
+    .top-exit{
+      position:absolute;left:20px;top:20px;z-index:20;background:transparent;color:#fff;
+      border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:12px 16px;cursor:pointer;
+    }
+
+    .demo-shell,.confirm-shell,.countdown-shell,.share-shell,.goodbye-shell{
+      min-height:100vh;position:relative;background:radial-gradient(circle at top left, #28197a 0%, var(--bg) 34%, #140c3f 100%);overflow:hidden;
+    }
+    .page-stage,.confirm-stage{
+      position:absolute;inset:0;display:grid;place-items:center;padding:80px 100px;z-index:2;
+    }
+    .slide-card{
+      width:min(900px,100%);min-height:460px;background:linear-gradient(180deg, rgba(45,30,114,.97), rgba(34,22,92,.97));color:var(--text);border:1px solid var(--line);border-radius:34px;
+      display:flex;align-items:center;justify-content:center;flex-direction:column;box-shadow:var(--shadow);text-align:center;padding:30px;
+    }
+    .slide-big{font-size:88px;font-weight:800;letter-spacing:.06em;opacity:.96}
+    .slide-sub{margin-top:12px;color:var(--text-soft);font-size:18px}
+
+    .tap-layer{position:absolute;inset:0;z-index:3;display:grid;grid-template-columns:1fr 1fr}
+    .tap-zone{cursor:pointer}
+    .tap-zone:hover{background:rgba(255,255,255,.04)}
+
+    .tutorial-mask{
+      position:absolute;inset:0;background:rgba(13,8,39,.68);z-index:18;display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(6px);
+    }
+    .tutorial-card{
+      width:min(880px,100%);border-radius:30px;background:linear-gradient(180deg, rgba(45,30,114,.97), rgba(34,22,92,.97));color:var(--text);
+      border:1px solid var(--line);padding:34px;text-align:left;box-shadow:0 30px 90px rgba(4,2,20,.40);
+    }
+    .tutorial-title{font-size:34px;font-weight:800;margin-bottom:12px}
+    .tutorial-board{
+      margin-top:10px;border:1px dashed rgba(255,255,255,.16);border-radius:24px;padding:24px;min-height:320px;position:relative;background:rgba(255,255,255,.04);
+    }
+    .tutorial-left,.tutorial-right,.tutorial-exit{
+      position:absolute;border-radius:22px;background:rgba(255,255,255,.04);border:1px solid var(--line);
+      padding:18px 22px;box-shadow:0 10px 30px rgba(0,0,0,.08);
+    }
+    .tutorial-exit{left:18px;top:18px;font-size:18px;font-weight:800}
+    .tutorial-left{left:18px;top:50%;transform:translateY(-50%);max-width:230px}
+    .tutorial-right{right:18px;top:50%;transform:translateY(-50%);max-width:230px;text-align:right}
+    .tutorial-big{font-size:34px;font-weight:800;line-height:1;color:var(--text)}
+    .tutorial-small{margin-top:8px;font-size:14px;color:var(--text-soft);line-height:1.5}
+    .tutorial-tip{margin-top:18px;font-size:14px;color:var(--accent);text-align:center;font-weight:700}
+
+    .confirm-stage{padding:80px 100px}
+    .confirm-card{
+      width:min(940px,100%);min-height:460px;border-radius:34px;border:1px solid var(--line);background:var(--surface);
+      display:grid;grid-template-columns:1fr 1fr;overflow:hidden;box-shadow:var(--shadow)
+    }
+    .confirm-side{
+      padding:34px;display:flex;align-items:center;justify-content:center;text-align:center;border-right:1px solid #ece7f4;color:var(--text);
+    }
+    .confirm-side:last-child{border-right:none}
+    .confirm-side h2{font-size:34px;margin:0 0 10px}
+    .confirm-side p{color:var(--text-soft);line-height:1.8}
+
+    .countdown-shell,.share-shell,.goodbye-shell{
+      display:grid;place-items:center;text-align:center;padding:24px;
+    }
+    .count-big{font-size:120px;font-weight:800;margin:0}
+    .count-label,.goodbye-text{font-size:30px;margin-top:14px}
+    .share-tip{color:#ece8ff;margin-top:12px;line-height:1.8}
+    .screen-placeholder{
+      font-size:24px;color:#fff;border:1px solid rgba(255,255,255,.22);border-radius:26px;padding:32px 40px;background:rgba(255,255,255,.06);
+    }
+
+    .modal-mask{
+      position:fixed;inset:0;background:rgba(17,11,42,.58);display:none;align-items:center;justify-content:center;padding:24px;z-index:120;backdrop-filter:blur(6px);
+    }
+    .modal-mask.show{display:flex}
+    .modal{
+      width:min(520px,100%);background:linear-gradient(180deg, rgba(45,30,114,.97), rgba(34,22,92,.97));color:var(--text);border:1px solid var(--line);border-radius:28px;padding:28px;box-shadow:0 30px 90px rgba(0,0,0,.28);
+    }
+    .modal p{color:var(--text-soft);line-height:1.7}
+    .modal-actions{margin-top:18px;display:flex;justify-content:flex-end;gap:12px}
+    .modal .secondary-btn{background:linear-gradient(180deg, rgba(45,30,114,.97), rgba(34,22,92,.97));color:var(--text);border:1px solid var(--line)}
+
+    .toast{
+      position:fixed;right:24px;bottom:24px;background:var(--text);color:#fff;border-radius:16px;
+      padding:14px 16px;box-shadow:0 10px 30px rgba(0,0,0,.22);display:none;z-index:200;
+    }
+
+    @media (max-width:900px){
+      .split-layout{grid-template-columns:1fr}
+      .split-pane{padding:24px}
+      .page-stage,.confirm-stage{padding:90px 56px}
+      .slide-big{font-size:58px}
+      .tutorial-title{font-size:28px}
+      .confirm-card{grid-template-columns:1fr}
+    }
+    @media (max-width:640px){
+      .center-card,.modal{padding:22px}
+      .page-stage,.confirm-stage{padding:90px 24px}
+      .slide-card{min-height:360px}
+      .slide-big{font-size:42px}
+      .count-big{font-size:82px}
+      .goodbye-text,.count-label{font-size:22px}
+    }
+
+  </style>
+</head>
+<body>
+  <section id="codePage" class="page active">
+    <div class="center-wrap">
+      <div class="center-card">
+        <h1 class="title">Enter Code</h1>
+        <p class="subtitle">Enter the room code to begin the branded presentation flow.</p>
+        <div class="field">
+          <label for="joinCode">Code</label>
+          <input id="joinCode" placeholder="Enter code" />
+        </div>
+        <div class="actions">
+          <button class="primary-btn" onclick="enterChoicePage()">Continue</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="choicePage" class="page">
+    <div class="split-layout">
+      <div class="split-pane">
+        <div class="choice-box">
+          <div class="choice-icon">📤</div>
+          <div class="choice-title">Upload</div>
+          <div class="choice-desc">Upload content and move into a CBRIN-styled presentation experience.</div>
+          <div class="link-row">
+            <button class="primary-btn" onclick="openUploadModal()">Upload</button>
+          </div>
+        </div>
+      </div>
+      <div class="split-pane">
+        <div class="choice-box">
+          <div class="choice-icon">🖥️</div>
+          <div class="choice-title">Share Screen</div>
+          <div class="choice-desc">Choose a countdown, then transition into screen sharing.</div>
+          <div class="field">
+            <label for="countdownSelect">Countdown</label>
+            <select id="countdownSelect">
+              <option value="5">5 seconds</option>
+              <option value="10">10 seconds</option>
+              <option value="20">20 seconds</option>
+              <option value="30">30 seconds</option>
+              <option value="60">60 seconds</option>
+            </select>
+          </div>
+          <div class="link-row">
+            <button class="primary-btn" onclick="startPrepareCountdown()">Start</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="demoPage" class="page">
+    <div class="demo-shell">
+      <button class="top-exit" onclick="exitFlow()">Exit</button>
+
+      <div class="tutorial-mask" id="tutorialMask" onclick="closeTutorial()">
+        <div class="tutorial-card">
+          <div class="tutorial-title">Quick Guide</div>
+          <div class="tutorial-board">
+            <div class="tutorial-exit">Exit</div>
+            <div class="tutorial-left">
+              <div class="tutorial-big">Previous</div>
+              <div class="tutorial-small">Tap the left half of the screen to go back one page.</div>
+            </div>
+            <div class="tutorial-right">
+              <div class="tutorial-big">Next</div>
+              <div class="tutorial-small">Tap the right half of the screen to move forward one page.</div>
+            </div>
+          </div>
+          <div class="tutorial-tip">Tap anywhere to close</div>
+        </div>
+      </div>
+
+      <div class="tap-layer">
+        <div class="tap-zone" onclick="prevDemoPage()"></div>
+        <div class="tap-zone" onclick="nextDemoPage()"></div>
+      </div>
+
+      <div class="page-stage">
+        <div class="slide-card">
+          <div class="slide-big" id="slideText">PAGE 1</div>
+          <div class="slide-sub">Clean, high-contrast branded navigation.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="confirmPage" class="page">
+    <div class="confirm-shell">
+      <button class="top-exit" onclick="exitFlow()">Exit</button>
+
+      <div class="tap-layer">
+        <div class="tap-zone" onclick="backFromConfirm()"></div>
+        <div class="tap-zone" onclick="exitFlow()"></div>
+      </div>
+
+      <div class="confirm-stage">
+        <div class="confirm-card">
+          <div class="confirm-side">
+            <div>
+              <h2>Not finish yet</h2>
+              <p>Tap the left half to jump back to the last slide.</p>
+            </div>
+          </div>
+          <div class="confirm-side">
+            <div>
+              <h2>Exit</h2>
+              <p>Tap the right half to wrap things up.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="countdownPage" class="page">
+    <div class="countdown-shell">
+      <button class="top-exit" onclick="exitFlow()">Exit</button>
+      <div>
+        <div class="subtitle" style="font-size:18px; color:#93c5fd;">Getting ready</div>
+        <h1 class="count-big" id="countNum">5</h1>
+        <div class="count-label">Screen sharing starts as soon as the countdown ends.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="sharePage" class="page">
+    <div class="share-shell">
+      <button class="top-exit" onclick="exitFlow()">Exit</button>
+      <div>
+        <div class="screen-placeholder">Screen Sharing Mode</div>
+        <div class="share-tip">Minimal sharing view with CBRIN brand colours.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="goodbyePage" class="page">
+    <div class="goodbye-shell">
+      <div>
+        <div style="font-size:80px;">✓</div>
+        <div class="goodbye-text">Presentation ended successfully</div>
+      </div>
+    </div>
+  </section>
+
+  <div id="uploadModal" class="modal-mask">
+    <div class="modal">
+      <h3>Upload</h3>
+      <p>Tap upload and you’ll head right into the presentation flow.</p>
+      <div class="modal-actions">
+        <button class="secondary-btn" onclick="closeUploadModal()">Cancel</button>
+        <button class="primary-btn" onclick="confirmUpload()">Upload</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">Done</div>
+
+  <script>
+    const pages = {
+      code: document.getElementById('codePage'),
+      choice: document.getElementById('choicePage'),
+      demo: document.getElementById('demoPage'),
+      confirm: document.getElementById('confirmPage'),
+      countdown: document.getElementById('countdownPage'),
+      share: document.getElementById('sharePage'),
+      goodbye: document.getElementById('goodbyePage')
+    };
+
+    let demoIndex = 1;
+    let countdownTimer = null;
+
+    function showPage(key) {
+      Object.values(pages).forEach(p => p.classList.remove('active'));
+      pages[key].classList.add('active');
+    }
+
+    function enterChoicePage() {
+      showPage('choice');
+    }
+
+    function openUploadModal() {
+      document.getElementById('uploadModal').classList.add('show');
+    }
+    function closeUploadModal() {
+      document.getElementById('uploadModal').classList.remove('show');
+    }
+
+    function confirmUpload() {
+      closeUploadModal();
+      demoIndex = 1;
+      updateSlide();
+      document.getElementById('tutorialMask').classList.remove('hidden');
+      showPage('demo');
+      showToast('Presentation started');
+    }
+
+    function closeTutorial() {
+      document.getElementById('tutorialMask').classList.add('hidden');
+    }
+
+    function updateSlide() {
+      document.getElementById('slideText').textContent = 'PAGE ' + demoIndex;
+    }
+
+    function nextDemoPage() {
+      if (!pages.demo.classList.contains('active')) return;
+      if (demoIndex < 5) {
+        demoIndex += 1;
+        updateSlide();
+      } else {
+        showPage('confirm');
+      }
+    }
+
+    function prevDemoPage() {
+      if (!pages.demo.classList.contains('active')) return;
+      if (demoIndex > 1) {
+        demoIndex -= 1;
+        updateSlide();
+      }
+    }
+
+    function backFromConfirm() {
+      demoIndex = 5;
+      updateSlide();
+      showPage('demo');
+    }
+
+    function startPrepareCountdown() {
+      const seconds = parseInt(document.getElementById('countdownSelect').value, 10);
+      let remain = seconds;
+      document.getElementById('countNum').textContent = remain;
+      showPage('countdown');
+
+      clearInterval(countdownTimer);
+      countdownTimer = setInterval(() => {
+        remain -= 1;
+        document.getElementById('countNum').textContent = remain;
+        if (remain <= 0) {
+          clearInterval(countdownTimer);
+          showPage('share');
+          showToast('Screen sharing started');
+        }
+      }, 1000);
+    }
+
+    function exitFlow() {
+      clearInterval(countdownTimer);
+      showPage('goodbye');
+      showToast('Exited successfully');
+    }
+
+    let toastTimer = null;
+    function showToast(text) {
+      const toast = document.getElementById('toast');
+      toast.textContent = text;
+      toast.style.display = 'block';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.style.display = 'none', 2200);
+    }
+  </script>
+</body>
+</html>
