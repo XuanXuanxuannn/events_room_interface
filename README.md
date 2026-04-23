@@ -96,3 +96,25 @@ Planned next steps include:
 - developing early presenter interaction screens
 - exploring billboard-mode content display
 - testing hardware assumptions and deployment options
+
+## Setup
+## Setup Instructions
+
+1. Create virtual environment
+
+```bash
+python -m venv venv
+source venv/bin/activate   # Mac/Linux
+
+
+2. Install dependencies
+pip install -r requirements.txt
+
+3. Initialize database
+python backend/init_db.py
+
+4. Insert seed data
+python backend/seed_data.py
+
+5. Run the application
+python backend/app.py
