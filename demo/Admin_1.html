@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Events Room Admin Demo</title>
+  <style>
+    :root{
+      --c-orange:#EF4136;
+      --c-pink:#9D1E65;
+      --c-magenta:#9E1D97;
+      --c-purple:#73308B;
+      --c-indigo:#201751;
+      --c-grey:#98999B;
+      --c-light:#D9D9D9;
+      --c-white:#FFFFFF;
+      --bg-gradient: linear-gradient(180deg, #201751 0%, #4a1f78 55%, #9D1E65 100%);
+      --panel-bg: rgba(32,23,81,.88);
+      --panel-border: rgba(217,217,217,.16);
+      --soft-bg: rgba(255,255,255,.06);
+      --soft-border: rgba(255,255,255,.14);
+      --text-soft:#e9ddf2;
+      --shadow: 0 24px 70px rgba(17, 10, 43, .42);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: Avenir, "Avenir Next", Montserrat, Arial, Helvetica, sans-serif;
+      background: var(--bg-gradient);
+      color: #fff;
+    }
+    .hidden { display: none !important; }
+    button, input, textarea { font: inherit; }
+    .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    .login-card {
+      width: 100%; max-width: 420px; background: var(--panel-bg); border: 1px solid var(--panel-border);
+      border-radius: 28px; padding: 32px; box-shadow: var(--shadow); backdrop-filter: blur(10px);
+    }
+    .login-title { margin: 0; font-size: 30px; font-weight: 700; }
+    .login-subtitle { margin: 10px 0 0; color: var(--text-soft); line-height: 1.7; font-size: 14px; }
+    .field { margin-top: 18px; }
+    .field label { display: block; margin-bottom: 8px; font-size: 13px; color: var(--text-soft); }
+    .field input, .field textarea {
+      width: 100%; padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.07); color: white; outline: none;
+    }
+    .field textarea { min-height: 96px; resize: vertical; }
+    .field input:focus, .field textarea:focus { border-color: var(--c-magenta); box-shadow: 0 0 0 3px rgba(158,29,151,.18); }
+    .btn, .login-btn, .secondary-btn, .danger-btn {
+      border-radius: 16px; padding: 14px 16px; cursor: pointer; color: white; font-weight: 700;
+    }
+    .btn, .login-btn {
+      border: none; background: linear-gradient(135deg, var(--c-magenta), var(--c-orange));
+    }
+    .secondary-btn { background: rgba(255,255,255,.08); border: 1px solid var(--soft-border); }
+    .danger-btn { background: linear-gradient(135deg, #7b1836, var(--c-orange)); border: 1px solid rgba(239,65,54,.55); }
+    .login-btn { width: 100%; margin-top: 22px; }
+    .hint { margin-top: 14px; color: #d8c7e7; font-size: 13px; line-height: 1.7; }
+
+    .app-page { min-height: 100vh; padding: 24px; position: relative; overflow: hidden; }
+    .app-page::before, .app-page::after {
+      content:""; position:absolute; border-radius:999px; pointer-events:none; z-index:0; opacity:.24;
+      background: radial-gradient(circle, rgba(255,255,255,.18) 0 35%, transparent 36% 100%);
+      width: 280px; height: 280px;
+    }
+    .app-page::before { top:-80px; right:4%; }
+    .app-page::after { bottom:-90px; left:3%; background: radial-gradient(circle, rgba(239,65,54,.22) 0 18%, transparent 19% 100%); }
+    .layout { position:relative; z-index:1; max-width: 1420px; margin: 0 auto; display: grid; grid-template-columns: 1.7fr .9fr; gap: 24px; }
+    .card {
+      background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 24px; overflow: hidden; box-shadow: var(--shadow);
+    }
+    .card-header {
+      padding: 24px; border-bottom: 1px solid #243041; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    }
+    .title { margin: 0; font-size: 28px; font-weight: 700; }
+    .subtitle { margin: 8px 0 0; color: var(--text-soft); font-size: 14px; line-height: 1.6; }
+    .badges { display: flex; gap: 10px; flex-wrap: wrap; }
+    .badge {
+      background: rgba(255,255,255,.08); color: #f6eefe; border: 1px solid var(--soft-border); border-radius: 999px; padding: 8px 12px; font-size: 12px;
+    }
+
+    .screen { position: relative; min-height: 720px; overflow: hidden; background: linear-gradient(180deg, rgba(32,23,81,1) 0%, rgba(40,20,92,1) 45%, rgba(92,24,112,1) 100%); }
+    .screen-mode { position: absolute; inset: 0; padding: 32px; display: none; }
+    .screen-mode.active { display: block; }
+    .screensaver { background: transparent; }
+    .connect { background: linear-gradient(135deg, #201751, #73308B 58%, #9D1E65 100%); }
+    .presentation { background: linear-gradient(135deg, #201751, #4c2678 55%, #73308B 100%); }
+
+    .mode-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+    .eyebrow { font-size: 12px; color: #d8c7e7; letter-spacing: .28em; text-transform: uppercase; }
+    .mode-title { margin: 12px 0 0; font-size: 44px; line-height: 1.1; }
+    .mode-desc { margin: 16px 0 0; color: var(--text-soft); max-width: 760px; line-height: 1.7; }
+    .ready-badge {
+      background: rgba(239,65,54,.16); color: #ffe4df; border: 1px solid rgba(239,65,54,.28); border-radius: 999px; padding: 8px 14px; font-size: 13px;
+    }
+    .screen-bottom {
+      position: absolute; left: 32px; right: 32px; bottom: 32px; display: grid; grid-template-columns: 1.15fr .85fr; gap: 24px; align-items: end;
+    }
+    .hero-text { font-size: 36px; line-height: 1.35; margin: 0; }
+    .muted { color: #d8c7e7; margin-top: 14px; line-height: 1.7; font-size: 15px; }
+    .glass {
+      border: 1px solid var(--soft-border); background: rgba(255,255,255,.08); border-radius: 24px; padding: 20px; backdrop-filter: blur(8px);
+    }
+    .glass h4 { margin: 0 0 12px; font-size: 14px; color: #ffd7f1; }
+    .glass div { color: white; font-size: 14px; margin: 8px 0; }
+
+    .idle-image-frame {
+      position: absolute; inset: 0; opacity: .88; transition: background-image .5s ease, opacity .3s ease;
+      background-size: cover; background-position: center; background-repeat: no-repeat;
+      filter: saturate(1.05);
+      z-index: 0;
+    }
+    .idle-overlay {
+      position: absolute; inset: 0; background: linear-gradient(135deg, rgba(2,6,23,.34), rgba(15,23,42,.24) 55%, rgba(30,41,59,.34));
+      z-index: 1;
+    }
+    #mode-screensaver, #mode-connect, #mode-presentation {
+      z-index: 2;
+    }
+
+    .connect-center { position: absolute; inset: 0; display: grid; place-items: center; padding: 32px; }
+    .connect-box {
+      width: min(760px, 100%); border: 1px solid rgba(255,255,255,.12); border-radius: 30px; background: rgba(255,255,255,.08); padding: 30px; text-align: center;
+    }
+    .connect-big { font-size: 72px; margin-bottom: 14px; }
+    .connect-main { margin: 0; font-size: 34px; font-weight: 700; }
+    .connect-note { margin-top: 14px; color: #ffd7f1; line-height: 1.8; font-size: 16px; }
+    .code-badge {
+      display: inline-block; margin-top: 18px; padding: 10px 16px; border-radius: 999px; background: rgba(158,29,151,.18);
+      border: 1px solid rgba(158,29,151,.3); color: #ffd7f1; font-weight: 700; letter-spacing: .18em;
+    }
+    .connect-actions { margin-top: 24px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+    .presentation-box {
+      position: absolute; left: 32px; right: 32px; top: 148px; bottom: 86px; border-radius: 32px; border: 1px solid rgba(255,255,255,.1);
+      background: rgba(255,255,255,.08); display: flex; align-items: center; justify-content: center; text-align: center; padding: 32px;
+    }
+    .presentation-box h3 { margin: 0; font-size: 34px; }
+    .presentation-box p { margin-top: 14px; color: #d1d5db; line-height: 1.7; }
+    .presentation-foot { position: absolute; left: 32px; right: 32px; bottom: 32px; color: var(--text-soft); font-size: 14px; }
+
+    .side-col { display: grid; gap: 24px; }
+    .panel-body { padding: 20px; }
+    .button-grid { display: grid; gap: 12px; }
+    #connectBtn {
+      min-height: 64px;
+      font-size: 20px;
+      font-weight: 800;
+      border-radius: 20px;
+    }
+    .item-box { border: 1px solid var(--panel-border); background: rgba(255,255,255,.05); border-radius: 18px; padding: 16px; margin-top: 12px; }
+    .item-label { color: #d8c7e7; font-size: 13px; }
+    .item-value { color: white; margin-top: 8px; line-height: 1.6; }
+    .setting-row {
+      display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end;
+      border: 1px solid var(--panel-border); background: rgba(255,255,255,.05); border-radius: 18px; padding: 16px;
+    }
+    .setting-row input { width: 120px; }
+
+    .modal-mask {
+      position: fixed; inset: 0; background: rgba(32,23,81,.75); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 99; backdrop-filter: blur(5px);
+    }
+    .modal-mask.show { display: flex; }
+    .modal {
+      width: min(840px, 100%); max-height: 88vh; overflow: auto;
+      background: linear-gradient(180deg, #201751 0%, #351d66 100%); border: 1px solid var(--panel-border); border-radius: 28px; padding: 28px; box-shadow: 0 30px 90px rgba(0,0,0,.45);
+    }
+    .modal.small { width: min(460px, 100%); }
+    .modal h3 { margin: 0; font-size: 28px; }
+    .modal p { color: var(--text-soft); line-height: 1.7; margin: 12px 0 0; }
+    .choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
+    .choice-card {
+      border: 1px solid #334155; background: rgba(255,255,255,.06); border-radius: 22px; padding: 20px; cursor: pointer;
+    }
+    .choice-card:hover { border-color: var(--c-orange); transform: translateY(-1px); }
+    .choice-icon { font-size: 34px; }
+    .choice-title { font-size: 18px; font-weight: 700; margin-top: 12px; }
+    .choice-desc { color: #d8c7e7; margin-top: 8px; line-height: 1.6; font-size: 14px; }
+    .modal-actions { margin-top: 18px; display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+
+    .gallery-grid {
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 22px;
+    }
+    .image-card, .add-card {
+      position: relative; border-radius: 22px; overflow: hidden; border: 1px solid #334155; background: rgba(255,255,255,.06); min-height: 220px;
+    }
+    .image-card img { width: 100%; height: 220px; object-fit: cover; display: block; }
+    .image-meta {
+      position: absolute; left: 12px; right: 12px; bottom: 12px; padding: 10px 12px; border-radius: 14px;
+      background: rgba(15,23,42,.84); color: white;
+    }
+    .image-name { font-size: 14px; font-weight: 700; }
+    .image-desc { margin-top: 6px; font-size: 12px; line-height: 1.5; color: var(--text-soft); }
+    .delete-x {
+      position: absolute; right: 10px; top: 10px; width: 32px; height: 32px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.18); background: rgba(127,29,29,.9); color: white; font-weight: 700; cursor: pointer;
+    }
+    .add-card {
+      display: grid; place-items: center; cursor: pointer; color: var(--text-soft); background: linear-gradient(135deg, rgba(158,29,151,.12), rgba(239,65,54,.12));
+      border-style: dashed;
+    }
+    .add-plus { font-size: 56px; line-height: 1; }
+    .add-label { margin-top: 10px; font-size: 14px; }
+
+    .toast {
+      position: fixed; right: 24px; bottom: 24px; background: rgba(32,23,81,.96); color: white; border: 1px solid rgba(239,65,54,.36); border-radius: 16px;
+      padding: 14px 16px; box-shadow: 0 10px 30px rgba(0,0,0,.28); display: none; z-index: 120;
+    }
+
+    @media (max-width: 1120px) {
+      .layout { grid-template-columns: 1fr; }
+      .gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .app-page { padding: 14px; }
+      .card-header, .panel-body { padding: 16px; }
+      .screen { min-height: 620px; }
+      .screen-mode { padding: 18px; }
+      .screen-bottom { left: 18px; right: 18px; bottom: 18px; grid-template-columns: 1fr; }
+      .presentation-box { left: 18px; right: 18px; top: 135px; bottom: 72px; }
+      .presentation-foot { left: 18px; right: 18px; bottom: 18px; }
+      .mode-title { font-size: 30px; }
+      .hero-text { font-size: 26px; }
+      .connect-main { font-size: 28px; }
+      .choice-grid, .gallery-grid, .setting-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <section id="loginPage" class="login-wrap">
+    <div class="login-card">
+      <h1 class="login-title">Admin Login</h1>
+      <p class="login-subtitle">Just type anything and hop in.</p>
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" placeholder="Type anything" />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" type="password" placeholder="Type anything" />
+      </div>
+      <button class="login-btn" onclick="login()">Log In</button>
+      <div class="hint">Easy demo mode.</div>
+    </div>
+  </section>
+
+  <section id="appPage" class="app-page hidden">
+    <div class="layout">
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h1 class="title">Events Room Admin</h1>
+            <p class="subtitle">CBRIN-styled connection flow with branded idle slides, gradients and presentation states.</p>
+          </div>
+          <div class="badges">
+            <div class="badge" id="modeBadge">Mode: idle</div>
+            <div class="badge" id="sourceBadge">Source: -</div>
+          </div>
+        </div>
+
+        <div class="screen">
+          <div id="idleImageFrame" class="idle-image-frame"></div>
+          <div class="idle-overlay"></div>
+
+          <div class="screen-mode screensaver active" id="mode-screensaver">
+            <div class="mode-top">
+              <div>
+                <div class="eyebrow">Idle Mode</div>
+                <h2 class="mode-title" id="billboardTitle">Upcoming Event</h2>
+              </div>
+              <div class="ready-badge">CBRIN Ready</div>
+            </div>
+
+            <div class="screen-bottom">
+              <div>
+                <div class="badge" id="slideTypeBadge" style="display:inline-block; margin-bottom:14px;">EVENT</div>
+                <p class="hero-text" id="billboardText">Design Futures Meetup</p>
+                <div class="muted" id="billboardDesc">A warm welcome slide for tonight's session.</div>
+              </div>
+              <div class="glass">
+                <h4>Idle slideshow</h4>
+                <div>Use bright, candid, colourful imagery</div>
+                <div>Keep layouts clean with curved, soft elements</div>
+                <div>White text on dark purple backgrounds</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="screen-mode connect" id="mode-connect">
+            <div class="mode-top">
+              <div>
+                <div class="eyebrow" style="color:#67e8f9">Connection Mode</div>
+                <h2 class="mode-title" id="connectTitle">Connection Mode</h2>
+                <p class="mode-desc" id="connectDesc">Pick a path, then move into presentation mode.</p>
+              </div>
+              <div class="badge" id="connectSourceBadge">Connection: -</div>
+            </div>
+
+            <div class="connect-center">
+              <div class="connect-box">
+                <div class="connect-big" id="connectVisual">QR CODE</div>
+                <h3 class="connect-main" id="connectMain">Wireless connection is ready</h3>
+                <div class="connect-note" id="connectNote">This is just a light demo flow.</div>
+                <div class="code-badge" id="numericCode">1234 5678</div>
+                <div class="connect-actions">
+                  <button class="btn" onclick="enterPresentation()">Enter Presentation Mode</button>
+                  <button class="secondary-btn" onclick="backToIdle()">Back to Idle</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="screen-mode presentation" id="mode-presentation">
+            <div class="mode-top">
+              <div>
+                <div class="eyebrow" style="color:#fde68a">Presentation Mode</div>
+                <h2 class="mode-title" id="presentationTitle">Presentation Ready</h2>
+                <p class="mode-desc">You’re connected. Tap disconnect whenever you want to go back.</p>
+              </div>
+              <div class="badge" id="presentationSourceBadge">Presentation Source: -</div>
+            </div>
+
+            <div class="presentation-box">
+              <div>
+                <div style="font-size:56px; margin-bottom:16px;">▶</div>
+                <h3>Presentation Area</h3>
+                <p>A clean placeholder for your live presentation.</p>
+              </div>
+            </div>
+            <div class="presentation-foot">Nice and simple.</div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="side-col">
+        <section class="card">
+          <div class="card-header"><h3 class="title" style="font-size:22px">Controls</h3></div>
+          <div class="panel-body">
+            <div class="button-grid">
+              <button id="connectBtn" class="btn" onclick="handleConnectBtn()">Connect</button>
+            </div>
+            
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header"><h3 class="title" style="font-size:22px">Idle Settings</h3></div>
+          <div class="panel-body">
+            <div class="setting-row">
+              <div>
+                <div class="item-label">Slide Duration</div>
+                <div class="hint" style="margin-top:6px;">How many seconds each idle slide stays on screen.</div>
+              </div>
+              <div class="field" style="margin-top:0;">
+                <input id="idleDurationInput" type="number" min="1" value="4" />
+              </div>
+            </div>
+            <div class="modal-actions" style="justify-content:flex-start; margin-top:12px;">
+              <button class="btn" onclick="saveIdleDuration()">Save Timing</button>
+            </div>
+
+            <div class="item-box">
+              <div class="item-label" style="margin-bottom:10px;">Idle Slides</div>
+              <div id="inlineGalleryGrid" class="gallery-grid" style="margin-top:0;"></div>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </section>
+
+  <div id="connectModal" class="modal-mask">
+    <div class="modal small">
+      <h3>Pick a Connection Type</h3>
+      <p>Choose the one you want and keep going.</p>
+      <div class="choice-grid">
+        <div class="choice-card" onclick="chooseConnect('wireless')">
+          <div class="choice-icon">📶</div>
+          <div class="choice-title">Wireless</div>
+          <div class="choice-desc">Shows a QR code and an 8-digit code first.</div>
+        </div>
+        <div class="choice-card" onclick="chooseConnect('hdmi')">
+          <div class="choice-icon">🔌</div>
+          <div class="choice-title">HDMI</div>
+          <div class="choice-desc">Jumps into wired connection mode first.</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="secondary-btn" onclick="closeConnectModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  
+
+  <div id="uploadImageModal" class="modal-mask">
+    <div class="modal small">
+      <h3>Add an Idle Slide</h3>
+      <p>Create one image slide for the idle rotation.</p>
+
+      <div class="field">
+        <label for="newSlideType">Slide Type</label>
+        <input id="newSlideType" placeholder="event / partner / booking" />
+      </div>
+
+      <div class="field">
+        <label for="newImageTitle">Title</label>
+        <input id="newImageTitle" placeholder="Something short and clear" />
+      </div>
+      <div class="field">
+        <label for="newImageDesc">Description</label>
+        <textarea id="newImageDesc" placeholder="A quick note for this image"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button class="secondary-btn" onclick="closeUploadModal()">Cancel</button>
+        <button class="btn" onclick="fakeUploadImage()">Upload</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="deleteConfirmModal" class="modal-mask">
+    <div class="modal small">
+      <h3>Delete This Image?</h3>
+      <p>This will remove it from the idle gallery.</p>
+      <div class="modal-actions">
+        <button class="secondary-btn" onclick="closeDeleteConfirm()">Keep It</button>
+        <button class="danger-btn" onclick="confirmDeleteImage()">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">Saved</div>
+
+  <script>
+    let idleSlides = [
+      { id: 1, type: 'event', title: 'Design Futures Meetup', description: 'A warm welcome slide for tonight\'s session.', src: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&q=80' },
+      { id: 2, type: 'partner', title: 'Canberra Innovation Network', description: 'A simple partner spotlight slide.', src: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=900&q=80' },
+      { id: 3, type: 'booking', title: 'Community Pitch Night', description: 'Now live, with the next session coming up right after.', src: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=900&q=80' }
+    ];
+    let deleteTargetId = null;
+
+    let slideIndex = 0;
+    let imageIndex = 0;
+    let currentMode = 'idle';
+    let currentSource = '-';
+    let connected = false;
+    let idleDurationSeconds = 4;
+    let idleTimer = null;
+
+    const loginPage = document.getElementById('loginPage');
+    const appPage = document.getElementById('appPage');
+    const modeBadge = document.getElementById('modeBadge');
+    const sourceBadge = document.getElementById('sourceBadge');
+    const billboardTitle = document.getElementById('billboardTitle');
+    const billboardText = document.getElementById('billboardText');
+    const billboardDesc = document.getElementById('billboardDesc');
+    const slideTypeBadge = document.getElementById('slideTypeBadge');
+    const idleImageFrame = document.getElementById('idleImageFrame');
+
+    const connectTitle = document.getElementById('connectTitle');
+    const connectDesc = document.getElementById('connectDesc');
+    const connectSourceBadge = document.getElementById('connectSourceBadge');
+    const connectVisual = document.getElementById('connectVisual');
+    const connectMain = document.getElementById('connectMain');
+    const connectNote = document.getElementById('connectNote');
+    const numericCode = document.getElementById('numericCode');
+
+    const presentationTitle = document.getElementById('presentationTitle');
+    const presentationSourceBadge = document.getElementById('presentationSourceBadge');
+    const connectBtn = document.getElementById('connectBtn');
+
+    const screensaverEl = document.getElementById('mode-screensaver');
+    const connectEl = document.getElementById('mode-connect');
+    const presentationEl = document.getElementById('mode-presentation');
+
+    function login() {
+      loginPage.classList.add('hidden');
+      appPage.classList.remove('hidden');
+      renderGallery();
+      updateIdleSlide();
+      restartIdleTimer();
+    }
+
+    function updateIdleSlide() {
+      if (!idleSlides.length) {
+        slideTypeBadge.textContent = 'EMPTY';
+        billboardTitle.textContent = 'No idle slides yet';
+        billboardText.textContent = 'Add a slide to get started';
+        billboardDesc.textContent = 'Your idle slideshow will show up here.';
+        idleImageFrame.style.backgroundImage = 'none';
+        return;
+      }
+      const item = idleSlides[slideIndex % idleSlides.length];
+      slideTypeBadge.textContent = (item.type || 'slide').toUpperCase();
+      billboardTitle.textContent = item.title || 'Untitled Slide';
+      billboardText.textContent = item.title || 'Untitled Slide';
+      billboardDesc.textContent = item.description || '';
+      idleImageFrame.style.backgroundImage = 'url(' + item.src + ')';
+      idleImageFrame.style.opacity = '0.72';
+    }
+
+    function updateIdleImage() {
+      updateIdleSlide();
+    }
+
+    function rotateIdleContent() {
+      if (currentMode !== 'idle' || !idleSlides.length) return;
+      slideIndex = (slideIndex + 1) % idleSlides.length;
+      updateIdleSlide();
+    }
+
+    function restartIdleTimer() {
+      clearInterval(idleTimer);
+      idleTimer = setInterval(rotateIdleContent, idleDurationSeconds * 1000);
+    }
+
+    function saveIdleDuration() {
+      const value = parseInt(document.getElementById('idleDurationInput').value, 10);
+      idleDurationSeconds = Number.isFinite(value) && value > 0 ? value : 4;
+      document.getElementById('idleDurationInput').value = idleDurationSeconds;
+      restartIdleTimer();
+      showToast('Idle timing updated');
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      screensaverEl.classList.remove('active');
+      connectEl.classList.remove('active');
+      presentationEl.classList.remove('active');
+      if (mode === 'idle') {
+        screensaverEl.classList.add('active');
+        modeBadge.textContent = 'Mode: idle';
+      } else if (mode === 'connect') {
+        connectEl.classList.add('active');
+        modeBadge.textContent = 'Mode: connect';
+      } else {
+        presentationEl.classList.add('active');
+        modeBadge.textContent = 'Mode: presentation';
+      }
+    }
+
+    function handleConnectBtn() {
+      if (connected) disconnect();
+      else openConnectModal();
+    }
+
+    function openConnectModal() { document.getElementById('connectModal').classList.add('show'); }
+    function closeConnectModal() { document.getElementById('connectModal').classList.remove('show'); }
+
+    function chooseConnect(type) {
+      closeConnectModal();
+      currentSource = type;
+      sourceBadge.textContent = 'Source: ' + type;
+      connectSourceBadge.textContent = 'Connection: ' + (type === 'wireless' ? 'Wireless' : 'HDMI');
+
+      if (type === 'wireless') {
+        connectTitle.textContent = 'Wireless Connection';
+        connectDesc.textContent = 'Show the QR code and 8-digit code, then keep going.';
+        connectVisual.textContent = 'QR CODE';
+        connectMain.textContent = 'Scan or enter the 8-digit code';
+        connectNote.textContent = 'This is a nice, simple demo state.';
+        numericCode.textContent = '1234 5678';
+        numericCode.style.display = 'inline-block';
+      } else {
+        connectTitle.textContent = 'HDMI Connection';
+        connectDesc.textContent = 'You’re in the wired connection view now.';
+        connectVisual.textContent = '🔌';
+        connectMain.textContent = 'HDMI is ready';
+        connectNote.textContent = 'One more tap and you’re in.';
+        numericCode.style.display = 'none';
+      }
+      setMode('connect');
+    }
+
+    function enterPresentation() {
+      connected = true;
+      connectBtn.textContent = 'Disconnect';
+      connectBtn.className = 'danger-btn';
+      presentationTitle.textContent = currentSource === 'wireless' ? 'Wireless Presentation Ready' : 'HDMI Presentation Ready';
+      presentationSourceBadge.textContent = 'Presentation Source: ' + currentSource;
+      setMode('presentation');
+      showToast('Presentation mode is live');
+    }
+
+    function disconnect() {
+      connected = false;
+      currentSource = '-';
+      sourceBadge.textContent = 'Source: -';
+      connectBtn.textContent = 'Connect';
+      connectBtn.className = 'btn';
+      setMode('idle');
+      showToast('Disconnected');
+    }
+
+    function backToIdle() {
+      currentSource = '-';
+      sourceBadge.textContent = 'Source: -';
+      setMode('idle');
+    }
+
+    function openIdleImages() {
+      renderGallery();
+    }
+    function closeIdleImages() {
+    }
+
+    function renderGallery() {
+      const grid = document.getElementById('inlineGalleryGrid');
+      const cards = idleSlides.map(img => `
+        <div class="image-card">
+          <img src="${img.src}" alt="${img.title}">
+          <button class="delete-x" onclick="askDeleteImage(${img.id})">×</button>
+          <div class="image-meta">
+            <div class="image-name">${img.title}</div>
+            <div class="image-desc">${img.description}</div>
+          </div>
+        </div>
+      `).join('');
+
+      grid.innerHTML = cards + `
+        <div class="add-card" onclick="openUploadModal()">
+          <div>
+            <div class="add-plus">+</div>
+            <div class="add-label">Upload Image</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function openUploadModal() {
+      document.getElementById('newSlideType').value = '';
+      document.getElementById('newImageTitle').value = '';
+      document.getElementById('newImageDesc').value = '';
+      document.getElementById('uploadImageModal').classList.add('show');
+    }
+    function closeUploadModal() {
+      document.getElementById('uploadImageModal').classList.remove('show');
+    }
+
+    function fakeUploadImage() {
+      const title = document.getElementById('newImageTitle').value.trim() || ('New Idle Image ' + (idleSlides.length + 1));
+      const description = document.getElementById('newImageDesc').value.trim() || 'A fresh image for the idle background.';
+      closeUploadModal();
+      const nextId = Date.now();
+      idleSlides.push({
+        id: nextId,
+        type: (document.getElementById('newSlideType').value.trim() || 'event').toLowerCase(),
+        title,
+        description,
+        src: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=900&q=80'
+      });
+      renderGallery();
+      updateIdleSlide();
+      showToast('Image added');
+    }
+
+    function askDeleteImage(id) {
+      deleteTargetId = id;
+      document.getElementById('deleteConfirmModal').classList.add('show');
+    }
+    function closeDeleteConfirm() {
+      deleteTargetId = null;
+      document.getElementById('deleteConfirmModal').classList.remove('show');
+    }
+    function confirmDeleteImage() {
+      idleSlides = idleSlides.filter(img => img.id !== deleteTargetId);
+      if (imageIndex >= idleSlides.length) imageIndex = 0;
+      closeDeleteConfirm();
+      renderGallery();
+      updateIdleSlide();
+      showToast('Image removed');
+    }
+
+    let toastTimer = null;
+    function showToast(text) {
+      const toast = document.getElementById('toast');
+      toast.textContent = text;
+      toast.style.display = 'block';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.style.display = 'none', 2200);
+    }
+
+
+  </script>
+</body>
+</html>
