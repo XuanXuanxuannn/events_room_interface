@@ -39,6 +39,16 @@
     .primary-btn { background: linear-gradient(135deg, #2563eb, #4f46e5); border: none; }
     .secondary-btn { background: #1f2937; border: 1px solid #334155; }
     .actions { margin-top: 22px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .upload-files-list { margin-top: 14px; display: grid; gap: 8px; }
+    .upload-file-item {
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 12px;
+      padding: 10px;
+      background: rgba(255,255,255,.04);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .upload-file-item a { color: #93c5fd; }
 
     .split-layout {
       min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; background: linear-gradient(135deg, #020617, #0f172a 60%, #111827);
@@ -192,7 +202,9 @@
           <div class="choice-desc">Open the upload step and jump into the presentation flow.</div>
           <div class="link-row">
             <button class="primary-btn" onclick="openUploadModal()">Upload</button>
+            <button class="secondary-btn" onclick="loadPresenterUploads()">Refresh Files</button>
           </div>
+          <div id="presenterUploadsList" class="upload-files-list"></div>
         </div>
       </div>
       <div class="split-pane">
@@ -316,6 +328,10 @@
     <div class="modal">
       <h3>Upload</h3>
       <p>Tap upload and you’ll head right into the presentation flow.</p>
+      <div class="field">
+        <label for="uploadFile">File</label>
+        <input id="uploadFile" type="file" accept=".pdf,.ppt,.pptx" />
+      </div>
       <div class="modal-actions">
         <button class="secondary-btn" onclick="closeUploadModal()">Cancel</button>
         <button class="primary-btn" onclick="confirmUpload()">Upload</button>
@@ -326,6 +342,8 @@
   <div id="toast" class="toast">Done</div>
 
   <script>
+    const API_BASE = 'http://127.0.0.1:5000';
+
     const pages = {
       code: document.getElementById('codePage'),
       choice: document.getElementById('choicePage'),
@@ -338,6 +356,7 @@
 
     let demoIndex = 1;
     let countdownTimer = null;
+    const presenterUploadsList = document.getElementById('presenterUploadsList');
 
     function showPage(key) {
       Object.values(pages).forEach(p => p.classList.remove('active'));
@@ -346,6 +365,34 @@
 
     function enterChoicePage() {
       showPage('choice');
+      loadPresenterUploads();
+    }
+
+    async function loadPresenterUploads() {
+      try {
+        const res = await fetch(`${API_BASE}/api/uploads`);
+        if (!res.ok) throw new Error('Failed to load uploads');
+        const files = await res.json();
+
+        if (!Array.isArray(files) || files.length === 0) {
+          presenterUploadsList.innerHTML = '<div class="upload-file-item">No uploaded files yet.</div>';
+          return;
+        }
+
+        presenterUploadsList.innerHTML = files
+          .slice(0, 6)
+          .map((file) => `
+            <div class="upload-file-item">
+              <strong>${file.filename || 'Unnamed file'}</strong><br />
+              Type: ${file.file_type || '-'}<br />
+              ${file.public_url ? `<a href="${file.public_url}" target="_blank" rel="noopener noreferrer">Open file</a>` : 'Open link unavailable'}
+            </div>
+          `)
+          .join('');
+      } catch (error) {
+        console.error(error);
+        presenterUploadsList.innerHTML = '<div class="upload-file-item">Cannot load uploaded files.</div>';
+      }
     }
 
     function openUploadModal() {
@@ -355,13 +402,39 @@
       document.getElementById('uploadModal').classList.remove('show');
     }
 
-    function confirmUpload() {
-      closeUploadModal();
-      demoIndex = 1;
-      updateSlide();
-      document.getElementById('tutorialMask').classList.remove('hidden');
-      showPage('demo');
-      showToast('Presentation started');
+    async function confirmUpload() {
+      const fileInput = document.getElementById('uploadFile');
+      const selectedFile = fileInput.files && fileInput.files[0];
+      if (!selectedFile) {
+        showToast('Please choose a file first');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      try {
+        const res = await fetch(`${API_BASE}/api/uploads`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!res.ok) {
+          throw new Error('Upload failed');
+        }
+
+        closeUploadModal();
+        fileInput.value = '';
+        await loadPresenterUploads();
+        demoIndex = 1;
+        updateSlide();
+        document.getElementById('tutorialMask').classList.remove('hidden');
+        showPage('demo');
+        showToast('Presentation started');
+      } catch (error) {
+        console.error(error);
+        showToast('Upload failed');
+      }
     }
 
     function closeTutorial() {

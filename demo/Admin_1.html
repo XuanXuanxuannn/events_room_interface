@@ -155,6 +155,15 @@
       border: 1px solid var(--panel-border); background: rgba(255,255,255,.05); border-radius: 18px; padding: 16px;
     }
     .setting-row input { width: 120px; }
+    .upload-list { display: grid; gap: 10px; margin-top: 12px; }
+    .upload-item {
+      border: 1px solid var(--panel-border);
+      background: rgba(255,255,255,.05);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .upload-item .item-label { font-size: 12px; }
+    .upload-empty { color: var(--text-soft); font-size: 13px; }
 
     .modal-mask {
       position: fixed; inset: 0; background: rgba(32,23,81,.75); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 99; backdrop-filter: blur(5px);
@@ -364,6 +373,16 @@
             </div>
           </div>
         </section>
+
+        <section class="card">
+          <div class="card-header"><h3 class="title" style="font-size:22px">Uploaded Files</h3></div>
+          <div class="panel-body">
+            <div class="modal-actions" style="justify-content:flex-start; margin-top:0;">
+              <button class="btn" onclick="loadUploadedFiles()">Refresh List</button>
+            </div>
+            <div id="uploadedFilesList" class="upload-list"></div>
+          </div>
+        </section>
       </aside>
     </div>
   </section>
@@ -410,6 +429,10 @@
         <label for="newImageDesc">Description</label>
         <textarea id="newImageDesc" placeholder="A quick note for this image"></textarea>
       </div>
+      <div class="field">
+        <label for="newImageFile">Image File</label>
+        <input id="newImageFile" type="file" accept=".jpg,.jpeg,.png,.gif,.webp" />
+      </div>
 
       <div class="modal-actions">
         <button class="secondary-btn" onclick="closeUploadModal()">Cancel</button>
@@ -432,11 +455,11 @@
   <div id="toast" class="toast">Saved</div>
 
   <script>
-    let idleSlides = [
-      { id: 1, type: 'event', title: 'Design Futures Meetup', description: 'A warm welcome slide for tonight\'s session.', src: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&q=80' },
-      { id: 2, type: 'partner', title: 'Canberra Innovation Network', description: 'A simple partner spotlight slide.', src: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=900&q=80' },
-      { id: 3, type: 'booking', title: 'Community Pitch Night', description: 'Now live, with the next session coming up right after.', src: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=900&q=80' }
-    ];
+    const API_BASE = 'http://127.0.0.1:5000';
+    const DEFAULT_IMAGE_URL = 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=900&q=80';
+    let adminToken = '';
+
+    let idleSlides = [];
     let deleteTargetId = null;
 
     let slideIndex = 0;
@@ -468,16 +491,142 @@
     const presentationTitle = document.getElementById('presentationTitle');
     const presentationSourceBadge = document.getElementById('presentationSourceBadge');
     const connectBtn = document.getElementById('connectBtn');
+    const uploadedFilesList = document.getElementById('uploadedFilesList');
 
     const screensaverEl = document.getElementById('mode-screensaver');
     const connectEl = document.getElementById('mode-connect');
     const presentationEl = document.getElementById('mode-presentation');
 
-    function login() {
-      loginPage.classList.add('hidden');
-      appPage.classList.remove('hidden');
+    function mapContentItem(item) {
+      return {
+        id: item.id,
+        type: item.type || 'event',
+        title: item.title || 'Untitled',
+        description: item.description || '',
+        src: item.media_url || DEFAULT_IMAGE_URL,
+      };
+    }
+
+    async function apiFetch(url, options = {}) {
+      const headers = new Headers(options.headers || {});
+      if (adminToken) headers.set('Authorization', `Bearer ${adminToken}`);
+      return fetch(url, { ...options, headers });
+    }
+
+    async function loadContentItems() {
+      const res = await apiFetch(`${API_BASE}/api/admin/content`);
+      if (!res.ok) throw new Error('Failed to load content items');
+      const items = await res.json();
+      idleSlides = items.map(mapContentItem);
+      if (slideIndex >= idleSlides.length) slideIndex = 0;
       renderGallery();
       updateIdleSlide();
+    }
+
+    async function createContentItem(payload) {
+      const res = await apiFetch(`${API_BASE}/api/admin/content`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Failed to create content item');
+      return res.json();
+    }
+
+    async function deleteContentItem(itemId) {
+      const res = await apiFetch(`${API_BASE}/api/admin/content/${itemId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete content item');
+    }
+
+    async function uploadBillboardImage(file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await apiFetch(`${API_BASE}/api/uploads/billboard-image`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Failed to upload image');
+      const payload = await res.json();
+      return payload.media_url;
+    }
+
+    function formatUploadedAt(value) {
+      if (!value) return '-';
+      try {
+        return new Date(value).toLocaleString();
+      } catch (error) {
+        return value;
+      }
+    }
+
+    async function loadUploadedFiles() {
+      const res = await apiFetch(`${API_BASE}/api/uploads`);
+      if (!res.ok) throw new Error('Failed to load uploaded files');
+      const files = await res.json();
+
+      if (!Array.isArray(files) || files.length === 0) {
+        uploadedFilesList.innerHTML = '<div class="upload-empty">No uploaded files yet.</div>';
+        return;
+      }
+
+      uploadedFilesList.innerHTML = files
+        .slice(0, 12)
+        .map((file) => `
+          <div class="upload-item">
+            <div class="item-value">${file.filename || 'Unnamed file'}</div>
+            <div class="item-label">Type: ${file.file_type || '-'}</div>
+            <div class="item-label">Status: ${file.status || '-'}</div>
+            <div class="item-label">Uploaded: ${formatUploadedAt(file.uploaded_at)}</div>
+            <div class="item-label" style="margin-top:8px;">
+              ${file.public_url ? `<a href="${file.public_url}" target="_blank" rel="noopener noreferrer" style="color:#ffd7f1;">Open file</a>` : 'Open link unavailable'}
+            </div>
+          </div>
+        `)
+        .join('');
+    }
+
+    async function login() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      if (!username || !password) {
+        showToast('Please enter username and password');
+        return;
+      }
+
+      try {
+        const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+
+        if (!loginRes.ok) {
+          showToast('Invalid login');
+          return;
+        }
+
+        const payload = await loginRes.json();
+        adminToken = payload.token || '';
+      } catch (error) {
+        console.error(error);
+        showToast('Cannot connect to backend');
+        return;
+      }
+
+      loginPage.classList.add('hidden');
+      appPage.classList.remove('hidden');
+      try {
+        await loadContentItems();
+        await loadUploadedFiles();
+      } catch (error) {
+        console.error(error);
+        showToast('Cannot connect to backend');
+        renderGallery();
+        updateIdleSlide();
+        uploadedFilesList.innerHTML = '<div class="upload-empty">Cannot load upload list.</div>';
+      }
       restartIdleTimer();
     }
 
@@ -631,27 +780,41 @@
       document.getElementById('newSlideType').value = '';
       document.getElementById('newImageTitle').value = '';
       document.getElementById('newImageDesc').value = '';
+      document.getElementById('newImageFile').value = '';
       document.getElementById('uploadImageModal').classList.add('show');
     }
     function closeUploadModal() {
       document.getElementById('uploadImageModal').classList.remove('show');
     }
 
-    function fakeUploadImage() {
+    async function fakeUploadImage() {
       const title = document.getElementById('newImageTitle').value.trim() || ('New Idle Image ' + (idleSlides.length + 1));
       const description = document.getElementById('newImageDesc').value.trim() || 'A fresh image for the idle background.';
+      const type = (document.getElementById('newSlideType').value.trim() || 'event').toLowerCase();
+      const imageFile = document.getElementById('newImageFile').files[0];
       closeUploadModal();
-      const nextId = Date.now();
-      idleSlides.push({
-        id: nextId,
-        type: (document.getElementById('newSlideType').value.trim() || 'event').toLowerCase(),
-        title,
-        description,
-        src: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=900&q=80'
-      });
-      renderGallery();
-      updateIdleSlide();
-      showToast('Image added');
+
+      try {
+        let mediaUrl = DEFAULT_IMAGE_URL;
+        if (imageFile) {
+          mediaUrl = await uploadBillboardImage(imageFile);
+        }
+
+        await createContentItem({
+          title,
+          type,
+          description,
+          media_url: mediaUrl,
+          is_active: true,
+          display_order: idleSlides.length + 1,
+        });
+        await loadContentItems();
+        await loadUploadedFiles();
+        showToast('Image added');
+      } catch (error) {
+        console.error(error);
+        showToast('Add failed');
+      }
     }
 
     function askDeleteImage(id) {
@@ -662,13 +825,21 @@
       deleteTargetId = null;
       document.getElementById('deleteConfirmModal').classList.remove('show');
     }
-    function confirmDeleteImage() {
-      idleSlides = idleSlides.filter(img => img.id !== deleteTargetId);
-      if (imageIndex >= idleSlides.length) imageIndex = 0;
+    async function confirmDeleteImage() {
+      const targetId = deleteTargetId;
       closeDeleteConfirm();
-      renderGallery();
-      updateIdleSlide();
-      showToast('Image removed');
+      if (!targetId) return;
+
+      try {
+        await deleteContentItem(targetId);
+        await loadContentItems();
+        await loadUploadedFiles();
+        if (imageIndex >= idleSlides.length) imageIndex = 0;
+        showToast('Image removed');
+      } catch (error) {
+        console.error(error);
+        showToast('Delete failed');
+      }
     }
 
     let toastTimer = null;
