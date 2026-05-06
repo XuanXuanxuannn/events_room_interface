@@ -97,24 +97,84 @@ Planned next steps include:
 - exploring billboard-mode content display
 - testing hardware assumptions and deployment options
 
-## Setup
+## Current MVP Status
+
+The repository now includes a working backend + demo-page integration for:
+
+- admin login
+- admin billboard content list/create/delete
+- presenter file upload (PDF/PPT/PPTX)
+- admin billboard image upload
+- uploaded-file listing with open links
+
 ## Setup Instructions
 
-1. Create virtual environment
+1. Create and activate a virtual environment
 
 ```bash
-python -m venv venv
-source venv/bin/activate   # Mac/Linux
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
+2. Install backend dependencies
 
-2. Install dependencies
-pip install -r requirements.txt
+```bash
+pip install -r backend/requirements.txt
+```
 
-3. Initialize database
-python backend/init_db.py
+3. Initialize the database
 
-4. Insert seed data
-python backend/seed_data.py
+```bash
+python3 backend/init_db.py
+```
 
-5. Run the application
-python backend/app.py
+4. (Optional) Seed sample data
+
+```bash
+python3 backend/seed_data.py
+```
+
+5. Run backend API server
+
+```bash
+python3 backend/app.py
+```
+
+6. In a new terminal, run demo static pages
+
+```bash
+cd demo
+python3 -m http.server 5500
+```
+
+7. Open demo pages
+
+- Admin: `http://127.0.0.1:5500/Admin_1.html`
+- Presenter: `http://127.0.0.1:5500/presentation.html`
+
+## Admin Login (Demo Defaults)
+
+The current login endpoint uses environment variables, with defaults:
+
+- username: `admin`
+- password: `admin123`
+
+You can override with:
+
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+
+## Backend API Overview
+
+- `POST /api/auth/login`
+- `GET /api/health`
+- `GET /api/screen/state`
+- `GET /api/connection/options`
+- `GET /api/billboard/playlist`
+- `GET /api/bookings/current-next`
+- `GET /api/uploads`
+- `POST /api/uploads`
+- `POST /api/uploads/billboard-image`
+- `GET /api/admin/content`
+- `POST /api/admin/content`
+- `DELETE /api/admin/content/<id>`
