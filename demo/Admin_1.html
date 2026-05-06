@@ -455,7 +455,7 @@
   <div id="toast" class="toast">Saved</div>
 
   <script>
-    const API_BASE = 'http://127.0.0.1:5000';
+    const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
     const DEFAULT_IMAGE_URL = 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=900&q=80';
     let adminToken = '';
 

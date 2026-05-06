@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, request
 
 from api.routes.auth import bp as auth_bp
@@ -42,4 +44,7 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    host = os.getenv("APP_HOST", "0.0.0.0")
+    port = int(os.getenv("APP_PORT", "5000"))
+    debug = os.getenv("APP_DEBUG", "0") == "1"
+    app.run(host=host, port=port, debug=debug)
