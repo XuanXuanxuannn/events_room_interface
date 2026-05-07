@@ -20,25 +20,47 @@ The proposed solution is a two-mode platform:
   - partner and sponsor logos
   - community highlights
   - room-related information
-
-## Sprint 1 Focus
+ 
+## Sprint 1 Summary
 
 Sprint 1 focused on defining the project direction and validating early design choices.
 
-### Sprint 1 outcomes
+### Sprint 1 Outcomes
 
-- clarified project scope and requirements
-- developed personas, scenarios, and user stories
-- compared software implementation approaches
-- compared hardware platform options
-- produced early interface demos
-- prepared the initial proposal and supporting documentation
+- Clarified project scope and requirements
+- Developed personas, scenarios, and user stories
+- Compared software implementation approaches
+- Compared hardware platform options
+- Produced early interface demos
+- Prepared the initial proposal and sprint review evidence
 
-### Key research findings
+### Key Research Findings
 
-- A **web-based system** was identified as the preferred software approach for the MVP because it offers low setup friction, centralised maintenance, and strong flexibility for combining connection workflows with billboard content management.
-- A **dedicated laptop** was identified as the most practical hardware platform for MVP development and early deployment.
+- A **web-based system** was identified as the preferred software approach for the MVP because it offers low setup friction, centralised maintenance, and flexibility for combining connection workflows with billboard content management.
 - A **mini PC** remains a strong longer-term option for cleaner permanent installation.
+- In Sprint 2, the team is exploring a **Raspberry Pi-based prototype path** for the simplest workable connection-flow demo.
+
+
+## Sprint 2 Focus
+
+Sprint 2 focused on establishing the technical baseline and developing an early connection demo for the prototype.
+
+### Sprint 2 outcomes
+
+- defined the core technology stack and local development environment
+- drafted a high-level system architecture
+- added initial project documentation
+- designed a low-fidelity connection-mode screen
+- prototyped the simplest workable connection flow
+- defined the HDMI fallback user flow
+- set up the backend / API connection
+- ran an internal test of the early connection demo
+
+### Key implementation findings
+
+- A **lightweight web-based prototype** remains suitable for Sprint 2 and it allows the team to connect frontend screens, backend endpoints, and demo workflows quickly.
+- A **simple backend / API layer** is useful for moving the prototype beyond static pages and supporting future dynamic features.
+- The **connection-mode workflow** should remain simple and presenter-focused, with HDMI fallback clearly available when the primary connection method does not work.
 
 ## Repository Purpose
 
@@ -64,14 +86,17 @@ The final project is expected to deliver:
 
 ## Current Status
 
-This repository is currently in the **early project stage**.  
+This repository is currently in the **Sprint 2 prototype development stage**.  
 At this stage, the main focus is on:
 
-- project planning
-- requirements clarification
-- design direction
-- demo development
-- technical evaluation of hardware and software approaches
+- technical baseline definition
+- local development setup
+- system architecture drafting
+- connection-mode screen design
+- early connection demo development
+- backend / API connection setup
+- HDMI fallback flow definition
+- internal testing of the early demo
 
 ## Team
 
