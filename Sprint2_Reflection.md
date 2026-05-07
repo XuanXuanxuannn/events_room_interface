@@ -14,6 +14,6 @@ At the same time, Sprint 2 revealed that we need to communicate technical decisi
 
 ## Future Improvement
 
-For the next sprint, the main improvement should be turning the early demo into a more stable and testable prototype. The connection-mode workflow should be refined so that presenters can understand the available options quickly, including file upload, wireless sharing, and HDMI fallback. The backend/API layer should also be improved to support cleaner data handling and easier future expansion.
+For the next sprint, the main improvement should be turning the early demo into a more stable and testable prototype, including more features such as share screen. The connection-mode workflow should be refined so that presenters can understand the available options quickly, including file upload, wireless sharing, and HDMI fallback. The backend/API layer should also be improved to support cleaner data handling and easier future expansion.
 
 In addition, the team should conduct more structured internal testing, using clear test steps and recording issues in a consistent format. This will help identify usability problems, missing states, and technical blockers before presenting the system to the client. Overall, Sprint 2 provided a useful foundation, and the next stage should focus on improving reliability, clarity, and integration across the whole system.
