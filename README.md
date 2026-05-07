@@ -20,25 +20,47 @@ The proposed solution is a two-mode platform:
   - partner and sponsor logos
   - community highlights
   - room-related information
-
-## Sprint 1 Focus
+ 
+## Sprint 1 Summary
 
 Sprint 1 focused on defining the project direction and validating early design choices.
 
-### Sprint 1 outcomes
+### Sprint 1 Outcomes
 
-- clarified project scope and requirements
-- developed personas, scenarios, and user stories
-- compared software implementation approaches
-- compared hardware platform options
-- produced early interface demos
-- prepared the initial proposal and supporting documentation
+- Clarified project scope and requirements
+- Developed personas, scenarios, and user stories
+- Compared software implementation approaches
+- Compared hardware platform options
+- Produced early interface demos
+- Prepared the initial proposal and sprint review evidence
 
-### Key research findings
+### Key Research Findings
 
-- A **web-based system** was identified as the preferred software approach for the MVP because it offers low setup friction, centralised maintenance, and strong flexibility for combining connection workflows with billboard content management.
-- A **dedicated laptop** was identified as the most practical hardware platform for MVP development and early deployment.
+- A **web-based system** was identified as the preferred software approach for the MVP because it offers low setup friction, centralised maintenance, and flexibility for combining connection workflows with billboard content management.
 - A **mini PC** remains a strong longer-term option for cleaner permanent installation.
+- In Sprint 2, the team is exploring a **Raspberry Pi-based prototype path** for the simplest workable connection-flow demo.
+
+
+## Sprint 2 Focus
+
+Sprint 2 focused on establishing the technical baseline and developing an early connection demo for the prototype.
+
+### Sprint 2 outcomes
+
+- defined the core technology stack and local development environment
+- drafted a high-level system architecture
+- added initial project documentation
+- designed a low-fidelity connection-mode screen
+- prototyped the simplest workable connection flow
+- defined the HDMI fallback user flow
+- set up the backend / API connection
+- ran an internal test of the early connection demo
+
+### Key implementation findings
+
+- A **lightweight web-based prototype** remains suitable for Sprint 2 and it allows the team to connect frontend screens, backend endpoints, and demo workflows quickly.
+- A **simple backend / API layer** is useful for moving the prototype beyond static pages and supporting future dynamic features.
+- The **connection-mode workflow** should remain simple and presenter-focused, with HDMI fallback clearly available when the primary connection method does not work.
 
 ## Repository Purpose
 
@@ -64,14 +86,17 @@ The final project is expected to deliver:
 
 ## Current Status
 
-This repository is currently in the **early project stage**.  
+This repository is currently in the **Sprint 2 prototype development stage**.  
 At this stage, the main focus is on:
 
-- project planning
-- requirements clarification
-- design direction
-- demo development
-- technical evaluation of hardware and software approaches
+- technical baseline definition
+- local development setup
+- system architecture drafting
+- connection-mode screen design
+- early connection demo development
+- backend / API connection setup
+- HDMI fallback flow definition
+- internal testing of the early demo
 
 ## Team
 
@@ -97,24 +122,84 @@ Planned next steps include:
 - exploring billboard-mode content display
 - testing hardware assumptions and deployment options
 
-## Setup
+## Current MVP Status
+
+The repository now includes a working backend + demo-page integration for:
+
+- admin login
+- admin billboard content list/create/delete
+- presenter file upload (PDF/PPT/PPTX)
+- admin billboard image upload
+- uploaded-file listing with open links
+
 ## Setup Instructions
 
-1. Create virtual environment
+1. Create and activate a virtual environment
 
 ```bash
-python -m venv venv
-source venv/bin/activate   # Mac/Linux
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
+2. Install backend dependencies
 
-2. Install dependencies
-pip install -r requirements.txt
+```bash
+pip install -r backend/requirements.txt
+```
 
-3. Initialize database
-python backend/init_db.py
+3. Initialize the database
 
-4. Insert seed data
-python backend/seed_data.py
+```bash
+python3 backend/init_db.py
+```
 
-5. Run the application
-python backend/app.py
+4. (Optional) Seed sample data
+
+```bash
+python3 backend/seed_data.py
+```
+
+5. Run backend API server
+
+```bash
+python3 backend/app.py
+```
+
+6. In a new terminal, run demo static pages
+
+```bash
+cd demo
+python3 -m http.server 5500
+```
+
+7. Open demo pages
+
+- Admin: `http://127.0.0.1:5500/Admin_1.html`
+- Presenter: `http://127.0.0.1:5500/presentation.html`
+
+## Admin Login (Demo Defaults)
+
+The current login endpoint uses environment variables, with defaults:
+
+- username: `admin`
+- password: `admin123`
+
+You can override with:
+
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+
+## Backend API Overview
+
+- `POST /api/auth/login`
+- `GET /api/health`
+- `GET /api/screen/state`
+- `GET /api/connection/options`
+- `GET /api/billboard/playlist`
+- `GET /api/bookings/current-next`
+- `GET /api/uploads`
+- `POST /api/uploads`
+- `POST /api/uploads/billboard-image`
+- `GET /api/admin/content`
+- `POST /api/admin/content`
+- `DELETE /api/admin/content/<id>`
