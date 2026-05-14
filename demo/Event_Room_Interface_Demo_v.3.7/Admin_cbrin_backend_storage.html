@@ -389,7 +389,7 @@
         <input id="password" type="password" placeholder="cbrin123" onkeydown="if(event.key==='Enter') login()" />
         <div id="loginError" class="error-message">Input error: username or password is incorrect.</div>
       </div>
-      <button class="login-btn" onclick="login()">Log In</button>
+      <button id="adminLoginBtn" class="login-btn" type="button" onclick="login()">Log In</button>
       <div class="hint">Demo credentials: admin / cbrin123.</div>
     </div>
   </section>
@@ -630,6 +630,7 @@
     }
 
     function resetRoomCode() {
+      adminRoomSessionToken++;
       ROOM_CODE = makeRandomRoomCode();
       presentationJoinUrl = '';
       presentationDisplayUrl = '';
@@ -718,6 +719,7 @@
 
     let presentationDisplayWindow = null;
     let adminDisconnecting = false;
+    let adminRoomSessionToken = 0;
     function updateConnectionStatus(text, state = 'idle') {
       const side = document.getElementById('adminConnectionStatus');
       const inline = document.getElementById('connectionStatusText');
@@ -759,9 +761,11 @@
 
     function startAdminPresentationListener() {
       if (adminPresentationEvents || !window.EventSource) return;
+      const localToken = adminRoomSessionToken;
       const room = encodeURIComponent(roomCompact());
       adminPresentationEvents = new EventSource('/api/presentation-events?room=' + room);
       adminPresentationEvents.onmessage = (event) => {
+        if (localToken !== adminRoomSessionToken || currentMode === 'idle') return;
         let msg;
         try { msg = JSON.parse(event.data || '{}'); } catch(e) { return; }
         if (msg.command === 'presence') {
@@ -1053,11 +1057,6 @@
 
     function backToIdle() {
       stopPresentation();
-      return;
-      connected = false;
-      currentSource = '-';
-      updateConnectButton();
-      showMode('idle');
     }
 
     function simulateConnect() {
@@ -1071,25 +1070,47 @@
 
     function stopPresentation() {
       adminDisconnecting = true;
+      adminRoomSessionToken++;
       const room = roomCompact();
+
+      if (adminPresentationEvents) {
+        try { adminPresentationEvents.close(); } catch(e) {}
+        adminPresentationEvents = null;
+      }
+
       fetch('/api/presentation-presence', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room, action: 'clear-room' })
       }).catch(() => {});
+
       fetch('/api/presentation-command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room, command: 'exit', seq: Date.now() * 1000 })
+        body: JSON.stringify({ room, command: 'exit', sender: 'admin-disconnect', seq: Date.now() * 1000 })
       }).catch(() => {});
+
       connected = false;
       currentSource = '-';
+      presentationJoinUrl = '';
+      presentationDisplayUrl = '';
       try { if (presentationDisplayWindow && !presentationDisplayWindow.closed) presentationDisplayWindow.close(); } catch(e) {}
+      presentationDisplayWindow = null;
+
       const frame = document.getElementById('adminDisplayFrame');
       if (frame) frame.src = 'about:blank';
+
+      const urlText = document.getElementById('presentationUrlText');
+      if (urlText) urlText.textContent = 'No active connection.';
+      const qr = document.getElementById('presentationQr');
+      if (qr) qr.removeAttribute('src');
+
       updateConnectionStatus('Disconnected. Click Connect to create a new room.', 'idle');
       updateConnectButton();
       showMode('idle');
+
+      // Keep the disconnect flag briefly so any delayed exit event is ignored as a stale disconnect.
+      setTimeout(() => { adminDisconnecting = false; }, 600);
     }
 
     function saveIdleDuration() {
@@ -1119,8 +1140,26 @@
       restartIdleTimer();
     }
 
+    // Robust admin login binding: keep inline onclick working and also bind click/Enter in JS.
     window.login = adminLogin;
-
+    document.addEventListener('DOMContentLoaded', function(){
+      const btn = document.getElementById('adminLoginBtn');
+      if (btn) btn.addEventListener('click', function(event){
+        event.preventDefault();
+        adminLogin();
+      });
+      const usernameInput = document.getElementById('username');
+      const passwordInput = document.getElementById('password');
+      [usernameInput, passwordInput].forEach(function(input){
+        if (!input) return;
+        input.addEventListener('keydown', function(event){
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            adminLogin();
+          }
+        });
+      });
+    });
 
     // Extra-safe binding for the wireless connect button. This avoids inline-handler/cache issues.
     document.addEventListener('DOMContentLoaded', () => {

@@ -339,6 +339,9 @@ async function handlePresentationCommand(req, res) {
       sender: payload.sender || null,
       source: payload.source || null,
       clientId: String(payload.clientId || ''),
+      direction: Number.isFinite(Number(payload.direction)) ? Number(payload.direction) : null,
+      action: payload.action || null,
+      fileIndex: Number.isFinite(Number(payload.fileIndex)) ? Number(payload.fileIndex) : null,
       at: Date.now()
     };
     const existingState = presentationStates.get(room) || {};
