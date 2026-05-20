@@ -717,7 +717,20 @@
           <div class="link-row">
             <button class="primary-btn" onclick="startPrepareCountdown()">Start Screen Sharing</button>
           </div>
+          <div class="link-row hidden" style="margin-top:10px;">
+            <button class="secondary-btn" onclick="joinScreenShareRoomFromPresentation()">
+              Join WebRTC Room Test
+            </button>
+          </div>
+          <div class="link-row hidden" style="margin-top:10px;">
+            <button class="secondary-btn" onclick="startWebRTCScreenShareFromPresentation()">
+              Start WebRTC Share Test
+            </button>
+          </div>
           <div id="shareError" class="error-message">Input error: screen sharing permission was not granted.</div>
+          <div id="screenShareSocketStatus" class="selected-label">
+            Ready to start screen sharing from this device.
+          </div>
         </div>
       </div>
     </div>
@@ -853,6 +866,8 @@
 
   <div id="toast" class="toast">Done</div>
 
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
   <script>
     const pages = {
       code: document.getElementById('codePage'),
@@ -870,12 +885,27 @@
       var input = document.getElementById('joinCode');
       if (room && input && !input.value) input.value = room === '12345678' ? '12345678' : room;
     });
+
+
     const BACKEND_UPLOAD_ENDPOINT = '/api/presentation-files';
     const BACKEND_COMMAND_ENDPOINT = '/api/presentation-command';
     const BACKEND_EVENTS_ENDPOINT = '/api/presentation-events';
     const BACKEND_PRESENCE_ENDPOINT = '/api/presentation-presence';
     const params = new URLSearchParams(location.search);
+
+    const SCREEN_SHARE_API_BASE = window.SCREEN_SHARE_API_BASE || 'http://127.0.0.1:5000';
+    const SCREEN_SHARE_SOCKET_URL = SCREEN_SHARE_API_BASE;
+    const SCREEN_SHARE_ROOM_ID = (
+      params.get('screen_room') ||
+      params.get('screenRoom') ||
+      ''
+    ).replace(/\s/g, '');
+
+    let screenShareSocket = null;
+
     const ROOM_ID = (params.get('room') || '12345678').replace(/\s/g, '') || '12345678';
+
+
     const PRESENTATION_ROLE = (location.pathname === '/display' || params.get('role') === 'display') ? 'display' : 'controller';
     const DISPLAY_WAITING_MODE = PRESENTATION_ROLE === 'display' && params.get('waiting') === '1';
     const CLIENT_STORAGE_KEY = 'cbrin-client-id-' + PRESENTATION_ROLE + '-' + ROOM_ID;
@@ -900,6 +930,20 @@
     let selectedPresentationId = null;
     let currentPresentation = null;
     let activeScreenStream = null;
+
+    let screenSharePeerConnection = null;
+    let screenShareActive = false;
+    let screenShareIsCleaningUp = false;
+    let screenShareEndingSession = false;
+    let pendingScreenShareIceCandidates = [];
+
+
+    const SCREEN_SHARE_RTC_CONFIG = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' }
+      ]
+    };
+
     let pdfPage = 1;
     let pptxPage = 1;
     let pdfDoc = null;
@@ -1142,6 +1186,500 @@
       showToast.timer = setTimeout(() => toast.style.display = 'none', 2200);
     }
 
+    function updateScreenShareSocketStatus(message) {
+      const status = document.getElementById('screenShareSocketStatus');
+
+      if (status) {
+        status.textContent = message;
+      }
+
+      console.log('[Presentation Screen Share]', message);
+    }
+
+    function getScreenShareRoomId() {
+      if (!SCREEN_SHARE_ROOM_ID) {
+        updateScreenShareSocketStatus('No screen_room found in URL.');
+        return '';
+      }
+
+      return SCREEN_SHARE_ROOM_ID;
+    }
+
+    function initScreenShareSocketForPresentation() {
+      if (screenShareSocket) {
+        return screenShareSocket;
+      }
+
+      if (!window.io) {
+        updateScreenShareSocketStatus('Socket.IO client not loaded.');
+        return null;
+      }
+
+      screenShareSocket = io(SCREEN_SHARE_SOCKET_URL);
+
+      screenShareSocket.on('connect', () => {
+        updateScreenShareSocketStatus(
+          'Connected to Flask screen share backend. Socket ID: ' + screenShareSocket.id
+        );
+      });
+
+      screenShareSocket.on('disconnect', () => {
+        updateScreenShareSocketStatus('Disconnected from Flask screen share backend.');
+      });
+
+      screenShareSocket.on('screen-share-room-joined', (data) => {
+        updateScreenShareSocketStatus(
+          'Joined screen share room ' + data.room + ' as ' + data.role + '.'
+        );
+
+        console.log('[Presentation Screen Share] room joined:', data);
+      });
+
+      screenShareSocket.on('participant-joined', (data) => {
+        console.log('[Presentation Screen Share] participant joined:', data);
+
+        if (data && data.role === 'display') {
+          updateScreenShareSocketStatus(
+            'Display joined screen share room ' + data.room + '. Ready to start screen sharing.'
+          );
+        }
+      });
+
+      screenShareSocket.on('screen-share-answer', async (data) => {
+        console.log('[Presentation Screen Share] received answer:', data);
+
+        if (!data || !data.answer) {
+          return;
+        }
+
+        await handleScreenShareAnswerFromDisplay(data.answer);
+      });
+
+      screenShareSocket.on('ice-candidate', async (data) => {
+        console.log('[Presentation Screen Share] received ICE candidate:', data);
+
+        if (!data || !data.candidate) {
+          return;
+        }
+
+        await handleScreenShareIceCandidateFromDisplay(data.candidate);
+      });
+
+
+      screenShareSocket.on('screen-share-error', (data) => {
+        updateScreenShareSocketStatus(
+          'Screen share error: ' + (data && data.error ? data.error : 'unknown error')
+        );
+
+        console.error('[Presentation Screen Share] error:', data);
+      });
+
+      screenShareSocket.on('stop-screen-share', (data) => {
+        updateScreenShareSocketStatus('Screen share stopped by backend.');
+
+        console.log('[Presentation Screen Share] stop received:', data);
+
+        cleanupPresentationWebRTCScreenShare('backend stop event');
+        showPage('choice');
+      });
+
+      return screenShareSocket;
+    }
+
+    function joinScreenShareRoomFromPresentation() {
+      const room = getScreenShareRoomId();
+
+      if (!room) {
+        showError(
+          'shareError',
+          'Input error: missing screen_room in URL. Please open this page from the Admin Screen Share panel.'
+        );
+        return;
+      }
+
+      const socket = initScreenShareSocketForPresentation();
+
+      if (!socket) {
+        showError(
+          'shareError',
+          'Input error: Socket.IO is not ready. Please refresh the page and try again.'
+        );
+        return;
+      }
+
+      function emitJoinRoom() {
+        socket.emit('join-screen-share-room', {
+          room: room,
+          role: 'presenter'
+        });
+
+        updateScreenShareSocketStatus('Joining screen share room ' + room + ' as presenter...');
+      }
+
+      if (socket.connected) {
+        emitJoinRoom();
+      } else {
+        updateScreenShareSocketStatus('Connecting to Flask screen share backend...');
+        socket.once('connect', emitJoinRoom);
+      }
+    }
+
+    window.joinScreenShareRoomFromPresentation = joinScreenShareRoomFromPresentation;
+
+    function waitForScreenShareSocketConnected(socket) {
+      if (socket.connected) {
+        return Promise.resolve();
+      }
+
+      return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error('Socket.IO connection timed out.'));
+        }, 8000);
+
+        socket.once('connect', () => {
+          clearTimeout(timeoutId);
+          resolve();
+        });
+
+        socket.once('connect_error', (error) => {
+          clearTimeout(timeoutId);
+          reject(error);
+        });
+      });
+    }
+
+    async function joinScreenShareRoomForWebRTC() {
+      const room = getScreenShareRoomId();
+
+      if (!room) {
+        throw new Error('Missing screen_room in URL.');
+      }
+
+      const socket = initScreenShareSocketForPresentation();
+
+      if (!socket) {
+        throw new Error('Socket.IO is not ready.');
+      }
+
+      await waitForScreenShareSocketConnected(socket);
+
+      socket.emit('join-screen-share-room', {
+        room: room,
+        role: 'presenter'
+      });
+
+      updateScreenShareSocketStatus('Joined request sent for room ' + room + ' as presenter.');
+
+      return {
+        room,
+        socket
+      };
+    }
+
+    function createPresentationScreenSharePeerConnection(socket, room) {
+      const peerConnection = new RTCPeerConnection(SCREEN_SHARE_RTC_CONFIG);
+
+      peerConnection.onicecandidate = (event) => {
+        if (!event.candidate) {
+          return;
+        }
+
+        socket.emit('ice-candidate', {
+          room: room,
+          role: 'presenter',
+          candidate: event.candidate
+        });
+
+        console.log('[Presentation Screen Share] sent ICE candidate:', event.candidate);
+      };
+
+      peerConnection.onconnectionstatechange = () => {
+        console.log(
+          '[Presentation Screen Share] peer connection state:',
+          peerConnection.connectionState
+        );
+
+        updateScreenShareSocketStatus(
+          'WebRTC connection state: ' + peerConnection.connectionState
+        );
+      };
+
+      peerConnection.oniceconnectionstatechange = () => {
+        console.log(
+          '[Presentation Screen Share] ICE connection state:',
+          peerConnection.iceConnectionState
+        );
+      };
+
+      return peerConnection;
+    }
+
+    async function handleScreenShareAnswerFromDisplay(answer) {
+      if (!screenSharePeerConnection) {
+        console.warn('[Presentation Screen Share] answer received but peer connection is missing.');
+        return;
+      }
+
+      await screenSharePeerConnection.setRemoteDescription(
+        new RTCSessionDescription(answer)
+      );
+
+      updateScreenShareSocketStatus('Received WebRTC answer from Display.');
+
+      await flushPendingScreenShareIceCandidates();
+    }
+
+    async function handleScreenShareIceCandidateFromDisplay(candidate) {
+      if (!screenSharePeerConnection) {
+        console.warn('[Presentation Screen Share] ICE candidate received before peer connection exists.');
+        return;
+      }
+
+      if (
+        !screenSharePeerConnection.remoteDescription ||
+        !screenSharePeerConnection.remoteDescription.type
+      ) {
+        pendingScreenShareIceCandidates.push(candidate);
+        console.log('[Presentation Screen Share] stored pending ICE candidate.');
+        return;
+      }
+
+      await screenSharePeerConnection.addIceCandidate(
+        new RTCIceCandidate(candidate)
+      );
+
+      console.log('[Presentation Screen Share] added ICE candidate from Display.');
+    }
+
+    async function flushPendingScreenShareIceCandidates() {
+      if (!screenSharePeerConnection) {
+        return;
+      }
+
+      while (pendingScreenShareIceCandidates.length > 0) {
+        const candidate = pendingScreenShareIceCandidates.shift();
+
+        await screenSharePeerConnection.addIceCandidate(
+          new RTCIceCandidate(candidate)
+        );
+
+        console.log('[Presentation Screen Share] added pending ICE candidate.');
+      }
+    }
+
+    async function startWebRTCScreenShareFromPresentation() {
+      hideError('shareError');
+
+      const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+
+      if (!window.isSecureContext && !isLocalhost) {
+        showError(
+          'shareError',
+          'Input error: browser screen sharing only works on HTTPS or localhost. Please open this page using http://localhost:3000/presentation.'
+        );
+        return;
+      }
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        showError(
+          'shareError',
+          'Input error: this browser/device does not support real browser screen sharing. Please use desktop Chrome or Edge.'
+        );
+        return;
+      }
+
+      try {
+        cleanupPresentationWebRTCScreenShare('restart before new WebRTC screen share');
+
+        const { room, socket } = await joinScreenShareRoomForWebRTC();
+
+        updateScreenShareSocketStatus('Requesting screen capture permission...');
+
+        activeScreenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true
+        });
+
+        const video = document.getElementById('screenShareVideo');
+
+        if (video) {
+          video.srcObject = activeScreenStream;
+          video.play().catch(() => {});
+        }
+
+        showPage('share');
+
+        screenSharePeerConnection = createPresentationScreenSharePeerConnection(socket, room);
+
+        activeScreenStream.getTracks().forEach((track) => {
+          screenSharePeerConnection.addTrack(track, activeScreenStream);
+          console.log('[Presentation Screen Share] added track:', track.kind);
+        });
+
+        const screenTrack = activeScreenStream.getVideoTracks()[0];
+
+        if (screenTrack) {
+          screenTrack.onended = () => {
+            if (screenShareIsCleaningUp || screenShareEndingSession) {
+              console.log('[Presentation Screen Share] screen track ended during cleanup.');
+              return;
+            }
+
+            console.log('[Presentation Screen Share] screen track ended by browser.');
+
+            stopWebRTCScreenShareFromPresentation('screen track ended by browser');
+          };
+        }
+
+        const offer = await screenSharePeerConnection.createOffer();
+
+        await screenSharePeerConnection.setLocalDescription(offer);
+
+        socket.emit('screen-share-offer', {
+          room: room,
+          role: 'presenter',
+          offer: offer
+        });
+
+        screenShareActive = true;
+
+        updateScreenShareSocketStatus('Sent WebRTC offer to Display. Waiting for answer...');
+
+        console.log('[Presentation Screen Share] sent WebRTC offer:', offer);
+
+      } catch (error) {
+        console.error('[Presentation Screen Share] failed to start WebRTC screen share:', error);
+
+        showError(
+          'shareError',
+          'Input error: WebRTC screen share failed. ' + error.message
+        );
+
+        cleanupPresentationWebRTCScreenShare('start failed');
+      }
+    }
+
+    async function stopWebRTCScreenShareFromPresentation(reason = 'presenter stop') {
+      if (screenShareEndingSession) {
+        console.log('[Presentation Screen Share] stop skipped because session ending is already running.');
+        return;
+      }
+
+      screenShareEndingSession = true;
+
+      const room = getScreenShareRoomId();
+
+      try {
+        if (!room) {
+          updateScreenShareSocketStatus('No screen_room found. Cleaning up locally only.');
+          cleanupPresentationWebRTCScreenShare(reason);
+          showPage('choice');
+          return;
+        }
+
+        updateScreenShareSocketStatus('Ending screen share session ' + room + '...');
+
+        const response = await fetch(
+          SCREEN_SHARE_API_BASE + '/api/screen-share/session/' + encodeURIComponent(room) + '/end',
+          {
+            method: 'POST'
+          }
+        );
+
+        let result = {};
+
+        try {
+          result = await response.json();
+        } catch (error) {
+          result = {};
+        }
+
+        if (!response.ok) {
+          console.error('[Presentation Screen Share] failed to end session:', result);
+
+          updateScreenShareSocketStatus(
+            'Failed to end screen share session on backend. Cleaning up locally.'
+          );
+        } else if (result.already_ended) {
+          updateScreenShareSocketStatus(
+            'Screen share session was already ended. Cleaning up locally.'
+          );
+        } else {
+          updateScreenShareSocketStatus(
+            'Screen share session ended. Screen returned to billboard.'
+          );
+        }
+
+        console.log('[Presentation Screen Share] end session result:', result);
+
+      } catch (error) {
+        console.error('[Presentation Screen Share] end session error:', error);
+
+        updateScreenShareSocketStatus(
+          'Error while ending screen share session. Cleaning up locally.'
+        );
+
+      } finally {
+        cleanupPresentationWebRTCScreenShare(reason);
+        showPage('choice');
+        screenShareEndingSession = false;
+      }
+    }
+
+    window.stopWebRTCScreenShareFromPresentation = stopWebRTCScreenShareFromPresentation;
+
+
+    function cleanupPresentationWebRTCScreenShare(reason = 'cleanup') {
+      if (screenShareIsCleaningUp) {
+        console.log('[Presentation Screen Share] cleanup skipped because cleanup is already running.');
+        return;
+      }
+
+      screenShareIsCleaningUp = true;
+
+      console.log('[Presentation Screen Share] cleanup reason:', reason);
+
+      if (screenSharePeerConnection) {
+        screenSharePeerConnection.onicecandidate = null;
+        screenSharePeerConnection.onconnectionstatechange = null;
+        screenSharePeerConnection.oniceconnectionstatechange = null;
+        screenSharePeerConnection.close();
+        screenSharePeerConnection = null;
+      }
+
+      pendingScreenShareIceCandidates = [];
+
+      if (activeScreenStream) {
+        activeScreenStream.getTracks().forEach((track) => {
+          track.stop();
+        });
+
+        activeScreenStream = null;
+      }
+
+      const video = document.getElementById('screenShareVideo');
+
+      if (video) {
+        video.srcObject = null;
+      }
+
+      screenShareActive = false;
+
+      updateScreenShareSocketStatus('Screen share cleaned up: ' + reason);
+
+      screenShareIsCleaningUp = false;
+    }
+
+    window.startWebRTCScreenShareFromPresentation = startWebRTCScreenShareFromPresentation;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (SCREEN_SHARE_ROOM_ID) {
+        updateScreenShareSocketStatus(
+          'Screen room loaded from URL: ' + SCREEN_SHARE_ROOM_ID
+        );
+      }
+    });
+
     function escapeHtml(value) {
       return String(value || '').replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
     }
@@ -1332,6 +1870,15 @@
           lastRemoteStartSeq = seq || Date.now();
           const remote = { ...msg.presentation, file: null, url: msg.presentation.url || msg.presentation.remoteUrl || msg.presentation.serverUrl };
           await beginPresentationFile(remote, true);
+          return;
+        }
+        if (msg.command === 'switch-file-request' && PRESENTATION_ROLE === 'controller' && currentPresentation) {
+          if (msg.clientId && msg.clientId === CLIENT_ID) return;
+          let dir;
+          if (msg.action === 'prev') dir = -1;
+          else if (msg.action === 'next') dir = 1;
+          else dir = Number(msg.direction) < 0 ? -1 : 1;
+          await switchPresentationFile(dir);
           return;
         }
         if (msg.command === 'sync' && currentPresentation) {
@@ -1831,6 +2378,18 @@
       await beginPresentationFile(nextItem, true);
     }
 
+    async function switchPresentationFileFromKeyboard(direction) {
+      const dir = Number(direction) < 0 ? -1 : 1;
+      const action = dir < 0 ? 'prev' : 'next';
+      if (PRESENTATION_ROLE === 'display') {
+        // Display does not own the full uploaded file list, so it asks Controller to switch.
+        await sendPresentationCommand('switch-file-request', { direction: dir, action });
+        showToast(action === 'prev' ? 'Requesting previous file...' : 'Requesting next file...');
+        return;
+      }
+      await switchPresentationFile(dir);
+    }
+
     function zoomInPresentation() {
       if (!currentPresentation) return;
       applyZoom(presentationZoom + 0.1);
@@ -1863,6 +2422,10 @@
     }
 
     function exitFlow(notify = true) {
+      if (screenShareActive || screenSharePeerConnection || activeScreenStream) {
+        stopWebRTCScreenShareFromPresentation('exit button');
+        return;
+      }
       if (notify && PRESENTATION_ROLE === 'controller' && currentPresentation) sendPresentationCommand('exit');
       if (PRESENTATION_ROLE === 'display') releasePresenceSlot();
       if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
@@ -1884,34 +2447,68 @@
 
     async function startPrepareCountdown() {
       hideError('shareError');
-      stopActiveScreenShare();
+
+      cleanupPresentationWebRTCScreenShare('restart before countdown screen share');
+
+      const room = getScreenShareRoomId();
+
+      if (!room) {
+        showError(
+          'shareError',
+          'Input error: missing screen_room in URL. Please open this page from the Admin Screen Share panel.'
+        );
+        return;
+      }
+
       const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+
       if (!window.isSecureContext && !isLocalhost) {
-        showError('shareError', 'Input error: browser screen sharing only works on HTTPS or localhost. On the presenting computer, open http://localhost:3000/presentation in desktop Chrome or Edge. A phone/LAN IP page usually cannot start real screen sharing.');
+        showError(
+          'shareError',
+          'Input error: browser screen sharing only works on HTTPS or localhost. Please open this page using http://localhost:3000/presentation.'
+        );
         return;
       }
+
       if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-        showError('shareError', 'Input error: this browser/device does not support real browser screen sharing. Please use desktop Chrome or Edge. Most mobile browsers do not support this feature, so a phone cannot reliably share its screen from a normal web page.');
+        showError(
+          'shareError',
+          'Input error: this browser/device does not support real browser screen sharing. Please use desktop Chrome or Edge.'
+        );
         return;
       }
-      try {
-        activeScreenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-      } catch (err) {
-        showError('shareError', 'Input error: screen sharing permission was cancelled or blocked. Please try again.');
-        return;
-      }
+
       const seconds = parseInt(document.getElementById('countdownSelect').value, 10) || 5;
       let remain = seconds;
+
       const count = document.getElementById('countNum');
-      if (count) count.textContent = remain;
+
+      if (count) {
+        count.textContent = remain;
+      }
+
+      updateScreenShareSocketStatus(
+        'Countdown started. WebRTC screen share will begin in ' + seconds + ' seconds.'
+      );
+
       showPage('countdown');
+
       clearInterval(countdownTimer);
-      countdownTimer = setInterval(() => {
+
+      countdownTimer = setInterval(async () => {
         remain -= 1;
-        if (count) count.textContent = Math.max(0, remain);
+
+        if (count) {
+          count.textContent = Math.max(0, remain);
+        }
+
         if (remain <= 0) {
           clearInterval(countdownTimer);
-          showRealScreenShare();
+          countdownTimer = null;
+
+          updateScreenShareSocketStatus('Countdown finished. Starting WebRTC screen share...');
+
+          await startWebRTCScreenShareFromPresentation();
         }
       }, 1000);
     }
@@ -1928,12 +2525,7 @@
     }
 
     function stopActiveScreenShare() {
-      if (activeScreenStream) {
-        activeScreenStream.getTracks().forEach(track => track.stop());
-        activeScreenStream = null;
-      }
-      const video = document.getElementById('screenShareVideo');
-      if (video) video.srcObject = null;
+      cleanupPresentationWebRTCScreenShare('stopActiveScreenShare called');
     }
 
     async function parsePptxSlides(item) {
@@ -2052,14 +2644,15 @@
     window.nextDemoPage = nextDemoPage;
     window.prevDemoPage = prevDemoPage;
     window.switchPresentationFile = switchPresentationFile;
+    window.switchPresentationFileFromKeyboard = switchPresentationFileFromKeyboard;
 
 
     document.addEventListener('keydown', (event) => {
       if (!pages.demo || !pages.demo.classList.contains('active')) return;
       if (event.key === 'ArrowRight') { event.preventDefault(); nextDemoPage(); }
       else if (event.key === 'ArrowLeft') { event.preventDefault(); prevDemoPage(); }
-      else if (event.key === 'ArrowDown') { event.preventDefault(); switchPresentationFile(1); }
-      else if (event.key === 'ArrowUp') { event.preventDefault(); switchPresentationFile(-1); }
+      else if (event.key === 'ArrowDown') { event.preventDefault(); switchPresentationFileFromKeyboard(1); }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); switchPresentationFileFromKeyboard(-1); }
       else if (event.key === '+' || event.key === '=') { event.preventDefault(); zoomInPresentation(); }
       else if (event.key === '-' || event.key === '_') { event.preventDefault(); zoomOutPresentation(); }
       else if (event.key === '0') { event.preventDefault(); resetPresentationZoom(); }
@@ -2254,6 +2847,35 @@
         return;
       }, { passive: true });
     }
+
+
+    // Extra desktop keyboard support. Mobile swipe gestures remain disabled.
+    // This listener is intentionally capture-phase so arrow keys still work if the presentation surface has focus.
+    window.addEventListener('keydown', function(event) {
+      const target = event.target;
+      const tag = target && target.tagName ? target.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || (target && target.isContentEditable)) return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (!pages.demo || !pages.demo.classList.contains('active') || !currentPresentation) return;
+
+      let handled = true;
+      if (event.key === 'ArrowRight' || event.key === 'PageDown') nextDemoPage();
+      else if (event.key === 'ArrowLeft' || event.key === 'PageUp') prevDemoPage();
+      else if (event.key === 'ArrowUp') switchPresentationFileFromKeyboard(-1);
+      else if (event.key === 'ArrowDown') switchPresentationFileFromKeyboard(1);
+      else if (event.key === '+' || event.key === '=') zoomInPresentation();
+      else if (event.key === '-' || event.key === '_') zoomOutPresentation();
+      else if (event.key === '0') resetPresentationZoom();
+      else if (event.key === 'Escape') exitFlow();
+      else handled = false;
+
+      if (handled) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+      }
+    }, true);
+
 
     connectPresentationEvents();
     window.addEventListener('DOMContentLoaded', () => {

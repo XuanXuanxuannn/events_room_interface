@@ -1,5 +1,7 @@
 from flask import Flask, request
 
+from extensions import socketio
+
 from api.routes.auth import bp as auth_bp
 from api.routes.admin_content import bp as admin_content_bp
 from api.routes.billboard import bp as billboard_bp
@@ -8,6 +10,8 @@ from api.routes.connection import bp as connection_bp
 from api.routes.health import bp as health_bp
 from api.routes.screen import bp as screen_bp
 from api.routes.uploads import bp as uploads_bp
+
+from api.routes.screen_share import bp as screen_share_bp
 
 
 def create_app() -> Flask:
@@ -22,6 +26,8 @@ def create_app() -> Flask:
     app.register_blueprint(bookings_bp)
     app.register_blueprint(admin_content_bp)
 
+    app.register_blueprint(screen_share_bp)
+
     @app.before_request
     def handle_preflight():
         if request.method == "OPTIONS":
@@ -35,6 +41,10 @@ def create_app() -> Flask:
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
         return response
 
+    socketio.init_app(app)
+
+    import realtime.screen_share_socket
+
     return app
 
 
@@ -42,4 +52,5 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    #app.run(debug=True)
+    socketio.run(app, debug=True, host="0.0.0.0", port=5000)

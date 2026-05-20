@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Screen Share Socket Test</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background: #f5f5f5;
+        }
+
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 800px;
+            margin: auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        input, select, button {
+            padding: 8px;
+            margin: 6px 4px;
+            font-size: 14px;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        #log {
+            background: #111;
+            color: #0f0;
+            padding: 15px;
+            height: 360px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-family: Consolas, monospace;
+        }
+
+        .section {
+            margin-top: 18px;
+            padding-top: 12px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+
+<body>
+<div class="panel">
+    <h1>Screen Share Socket.IO Test</h1>
+
+    <p>
+        This page is only for Stage 2 testing.
+        It does not share the real screen yet.
+    </p>
+
+    <div class="section">
+        <h3>1. Join Room</h3>
+
+        <label>Room Code:</label>
+        <input id="roomInput" placeholder="Example: 906932">
+
+        <label>Role:</label>
+        <select id="roleSelect">
+            <option value="presenter">Presenter</option>
+            <option value="display">Display</option>
+            <option value="admin">Admin</option>
+        </select>
+
+        <button onclick="joinRoom()">Join Room</button>
+        <button onclick="leaveRoom()">Leave Room</button>
+    </div>
+
+    <div class="section">
+        <h3>2. Send Fake WebRTC Messages</h3>
+
+        <button onclick="sendFakeOffer()">Send Fake Offer</button>
+        <button onclick="sendFakeAnswer()">Send Fake Answer</button>
+        <button onclick="sendFakeIce()">Send Fake ICE Candidate</button>
+        <button onclick="sendStop()">Send Stop Screen Share</button>
+    </div>
+
+    <div class="section">
+        <h3>3. Log</h3>
+        <div id="log"></div>
+    </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<script>
+    const socket = io("http://127.0.0.1:5000");
+
+    let currentRoom = "";
+    let currentRole = "";
+
+    function log(message, data = null) {
+        const logBox = document.getElementById("log");
+        const time = new Date().toLocaleTimeString();
+
+        let line = `[${time}] ${message}`;
+
+        if (data !== null) {
+            line += "\n" + JSON.stringify(data, null, 2);
+        }
+
+        logBox.textContent += line + "\n\n";
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    socket.on("connect", () => {
+        log("Connected to Socket.IO server", {
+            socketId: socket.id
+        });
+    });
+
+    socket.on("disconnect", () => {
+        log("Disconnected from Socket.IO server");
+    });
+
+    socket.on("connect_error", (error) => {
+        log("Connection error", {
+            message: error.message
+        });
+    });
+
+    socket.on("joined-screen-share-room", (data) => {
+        log("You joined the screen share room", data);
+    });
+
+    socket.on("participant-joined", (data) => {
+        log("Another participant joined", data);
+    });
+
+    socket.on("participant-left", (data) => {
+        log("Another participant left", data);
+    });
+
+    socket.on("screen-share-offer", (data) => {
+        log("Received screen-share-offer", data);
+    });
+
+    socket.on("screen-share-answer", (data) => {
+        log("Received screen-share-answer", data);
+    });
+
+    socket.on("ice-candidate", (data) => {
+        log("Received ice-candidate", data);
+    });
+
+    socket.on("stop-screen-share", (data) => {
+        log("Received stop-screen-share", data);
+    });
+
+    socket.on("screen-share-error", (data) => {
+        log("Received screen-share-error", data);
+    });
+
+    function getRoomAndRole() {
+        const room = document.getElementById("roomInput").value.trim();
+        const role = document.getElementById("roleSelect").value;
+
+        if (!room) {
+            alert("Please enter a room code first.");
+            return null;
+        }
+
+        return { room, role };
+    }
+
+    function joinRoom() {
+        const result = getRoomAndRole();
+
+        if (!result) {
+            return;
+        }
+
+        currentRoom = result.room;
+        currentRole = result.role;
+
+        socket.emit("join-screen-share-room", {
+            room: currentRoom,
+            role: currentRole
+        });
+
+        log("Sent join-screen-share-room", {
+            room: currentRoom,
+            role: currentRole
+        });
+    }
+
+    function leaveRoom() {
+        if (!currentRoom) {
+            alert("You have not joined a room yet.");
+            return;
+        }
+
+        socket.emit("leave-screen-share-room", {
+            room: currentRoom,
+            role: currentRole
+        });
+
+        log("Sent leave-screen-share-room", {
+            room: currentRoom,
+            role: currentRole
+        });
+
+        currentRoom = "";
+        currentRole = "";
+    }
+
+    function sendFakeOffer() {
+        if (!currentRoom) {
+            alert("Join a room first.");
+            return;
+        }
+
+        const fakeOffer = {
+            type: "offer",
+            sdp: "This is a fake WebRTC offer for testing only."
+        };
+
+        socket.emit("screen-share-offer", {
+            room: currentRoom,
+            role: currentRole,
+            offer: fakeOffer
+        });
+
+        log("Sent fake screen-share-offer", fakeOffer);
+    }
+
+    function sendFakeAnswer() {
+        if (!currentRoom) {
+            alert("Join a room first.");
+            return;
+        }
+
+        const fakeAnswer = {
+            type: "answer",
+            sdp: "This is a fake WebRTC answer for testing only."
+        };
+
+        socket.emit("screen-share-answer", {
+            room: currentRoom,
+            role: currentRole,
+            answer: fakeAnswer
+        });
+
+        log("Sent fake screen-share-answer", fakeAnswer);
+    }
+
+    function sendFakeIce() {
+        if (!currentRoom) {
+            alert("Join a room first.");
+            return;
+        }
+
+        const fakeCandidate = {
+            candidate: "fake-ice-candidate-for-testing",
+            sdpMid: "0",
+            sdpMLineIndex: 0
+        };
+
+        socket.emit("ice-candidate", {
+            room: currentRoom,
+            role: currentRole,
+            candidate: fakeCandidate
+        });
+
+        log("Sent fake ice-candidate", fakeCandidate);
+    }
+
+    function sendStop() {
+        if (!currentRoom) {
+            alert("Join a room first.");
+            return;
+        }
+
+        socket.emit("stop-screen-share", {
+            room: currentRoom,
+            role: currentRole,
+            reason: "manual test stop"
+        });
+
+        log("Sent stop-screen-share", {
+            room: currentRoom,
+            role: currentRole
+        });
+    }
+</script>
+</body>
+</html>

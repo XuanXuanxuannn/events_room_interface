@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WebRTC Display Test</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background: #101010;
+            color: white;
+        }
+
+        .panel {
+            background: #1d1d1d;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 1100px;
+            margin: auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+
+        input, button {
+            padding: 8px;
+            margin: 6px 4px;
+            font-size: 14px;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        video {
+            width: 100%;
+            max-height: 600px;
+            background: black;
+            margin-top: 12px;
+            border-radius: 8px;
+        }
+
+        .status-box {
+            background: #222;
+            color: #fff;
+            padding: 14px;
+            border-radius: 8px;
+            margin-top: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        #log {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-family: Consolas, monospace;
+        }
+
+        .section {
+            margin-top: 18px;
+            padding-top: 12px;
+            border-top: 1px solid #444;
+        }
+    </style>
+</head>
+
+<body>
+<div class="panel">
+    <h1>WebRTC Display Test</h1>
+
+    <p>
+        This page acts as the Display.
+        It receives the Presenter screen stream and shows it in the video area.
+    </p>
+
+    <div id="statusText" class="status-box">
+        Waiting for screen share...
+    </div>
+
+    <div class="section">
+        <h3>1. Join Room</h3>
+
+        <label>Room Code:</label>
+        <input id="roomInput" placeholder="Example: 812228">
+
+        <button onclick="joinRoom()">Join Room</button>
+        <button onclick="clearDisplay()">Clear Display</button>
+    </div>
+
+    <div class="section">
+        <h3>2. Remote Screen</h3>
+        <video id="remoteVideo" autoplay playsinline></video>
+    </div>
+
+    <div class="section">
+        <h3>3. Log</h3>
+        <div id="log"></div>
+    </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<script>
+    const socket = io("http://127.0.0.1:5000");
+
+    let currentRoom = "";
+    const currentRole = "display";
+
+    let peerConnection = null;
+    let remoteStream = null;
+
+    const pendingIceCandidates = [];
+
+    const rtcConfig = {
+        iceServers: [
+            { urls: "stun:stun.l.google.com:19302" }
+        ]
+    };
+
+    function log(message, data = null) {
+        const logBox = document.getElementById("log");
+        const time = new Date().toLocaleTimeString();
+
+        let line = `[${time}] ${message}`;
+
+        if (data !== null) {
+            line += "\n" + JSON.stringify(data, null, 2);
+        }
+
+        logBox.textContent += line + "\n\n";
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function updateStatus(message) {
+        const statusBox = document.getElementById("statusText");
+        statusBox.textContent = message;
+
+        log("Display status updated", {
+            status: message
+        });
+    }
+
+    function prefillRoomCodeFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const roomFromUrl = params.get("room") || params.get("room_code");
+
+        if (!roomFromUrl) {
+            log("No room code found in URL. Please enter room code manually.");
+            return;
+        }
+
+        const cleanedRoomCode = roomFromUrl.trim();
+
+        document.getElementById("roomInput").value = cleanedRoomCode;
+
+        updateStatus(`Room code ${cleanedRoomCode} loaded. Click Join Room to continue.`);
+
+        log("Room code pre-filled from URL", {
+            room: cleanedRoomCode
+        });
+    }
+
+    window.addEventListener("DOMContentLoaded", prefillRoomCodeFromUrl);
+
+    socket.on("connect", () => {
+        log("Connected to Socket.IO server", {
+            socketId: socket.id
+        });
+
+        updateStatus("Connected. Waiting to join a room...");
+    });
+
+    socket.on("disconnect", () => {
+        log("Disconnected from Socket.IO server");
+
+        updateStatus("Disconnected from server.");
+    });
+
+    socket.on("connect_error", (error) => {
+        log("Connection error", {
+            message: error.message
+        });
+    });
+
+    socket.on("joined-screen-share-room", (data) => {
+        log("Display joined room", data);
+    });
+
+    socket.on("participant-joined", (data) => {
+        log("Another participant joined", data);
+
+        if (data.role === "presenter") {
+            updateStatus("Presenter joined. Waiting for screen share...");
+        }
+    });
+
+    socket.on("screen-share-offer", async (data) => {
+        log("Received real WebRTC offer", data.offer);
+
+         updateStatus("Receiving screen share...");
+
+        try {
+            if (!peerConnection) {
+                peerConnection = createPeerConnection();
+            }
+
+            await peerConnection.setRemoteDescription(
+                new RTCSessionDescription(data.offer)
+            );
+
+            log("Display set remote description from offer");
+
+            const answer = await peerConnection.createAnswer();
+
+            await peerConnection.setLocalDescription(answer);
+
+            log("Display created and set local answer", peerConnection.localDescription);
+
+            socket.emit("screen-share-answer", {
+                room: currentRoom,
+                role: currentRole,
+                answer: peerConnection.localDescription
+            });
+
+            log("Display sent real screen-share-answer");
+
+            await flushPendingIceCandidates();
+
+        } catch (error) {
+            log("Failed to handle WebRTC offer", {
+                name: error.name,
+                message: error.message
+            });
+        }
+    });
+
+    socket.on("ice-candidate", async (data) => {
+        log("Received ICE candidate from Presenter", data.candidate);
+
+        if (!data.candidate) {
+            return;
+        }
+
+        if (!peerConnection || !peerConnection.remoteDescription) {
+            pendingIceCandidates.push(data.candidate);
+            log("ICE candidate saved temporarily because remoteDescription is not ready yet");
+            return;
+        }
+
+        await peerConnection.addIceCandidate(
+            new RTCIceCandidate(data.candidate)
+        );
+
+        log("Display added ICE candidate");
+    });
+
+    socket.on("stop-screen-share", (data) => {
+        log("Received stop-screen-share", data);
+
+        clearDisplay("Screen share ended. Waiting for next presenter...");
+    });
+
+    socket.on("screen-share-error", (data) => {
+        log("Received screen-share-error", data);
+    });
+
+    function getRoomCode() {
+        const room = document.getElementById("roomInput").value.trim();
+
+        if (!room) {
+            alert("Please enter a room code first.");
+            return null;
+        }
+
+        return room;
+    }
+
+    function joinRoom() {
+        const room = getRoomCode();
+
+        if (!room) {
+            return;
+        }
+
+        currentRoom = room;
+
+        socket.emit("join-screen-share-room", {
+            room: currentRoom,
+            role: currentRole
+        });
+
+        log("Sent join-screen-share-room", {
+            room: currentRoom,
+            role: currentRole
+        });
+
+        updateStatus(`Joined room ${currentRoom}. Waiting for presenter...`);
+    }
+
+    function createPeerConnection() {
+        const pc = new RTCPeerConnection(rtcConfig);
+
+        remoteStream = new MediaStream();
+
+        const remoteVideo = document.getElementById("remoteVideo");
+        remoteVideo.srcObject = remoteStream;
+
+        pc.ontrack = (event) => {
+            log("Display received remote track", {
+                trackKind: event.track.kind
+            });
+
+            event.streams[0].getTracks().forEach((track) => {
+                remoteStream.addTrack(track);
+            });
+
+            updateStatus("Screen share active");
+        };
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit("ice-candidate", {
+                    room: currentRoom,
+                    role: currentRole,
+                    candidate: event.candidate
+                });
+
+                log("Display sent ICE candidate", event.candidate);
+            }
+        };
+
+        pc.onconnectionstatechange = () => {
+            log("Display connection state changed", {
+                connectionState: pc.connectionState
+            });
+        };
+
+        pc.oniceconnectionstatechange = () => {
+            log("Display ICE connection state changed", {
+                iceConnectionState: pc.iceConnectionState
+            });
+        };
+
+        return pc;
+    }
+
+    async function flushPendingIceCandidates() {
+        if (!peerConnection || !peerConnection.remoteDescription) {
+            return;
+        }
+
+        while (pendingIceCandidates.length > 0) {
+            const candidate = pendingIceCandidates.shift();
+
+            await peerConnection.addIceCandidate(
+                new RTCIceCandidate(candidate)
+            );
+
+            log("Display added pending ICE candidate", candidate);
+        }
+    }
+
+    function clearDisplay(statusMessage = "Screen share ended. Waiting for next presenter...") {
+        const remoteVideo = document.getElementById("remoteVideo");
+        remoteVideo.srcObject = null;
+
+        if (remoteStream) {
+            remoteStream.getTracks().forEach((track) => {
+                track.stop();
+            });
+
+            remoteStream = null;
+        }
+
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+
+        pendingIceCandidates.length = 0;
+
+        updateStatus(statusMessage);
+
+        log("Display cleaned up remote screen", {
+            status: statusMessage
+        });
+    }
+</script>
+</body>
+</html>

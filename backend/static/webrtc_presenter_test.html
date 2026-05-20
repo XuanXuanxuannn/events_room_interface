@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WebRTC Presenter Test</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background: #f5f5f5;
+        }
+
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 900px;
+            margin: auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        input, button {
+            padding: 8px;
+            margin: 6px 4px;
+            font-size: 14px;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        video {
+            width: 100%;
+            max-height: 360px;
+            background: #111;
+            margin-top: 12px;
+            border-radius: 8px;
+        }
+
+        #log {
+            background: #111;
+            color: #0f0;
+            padding: 15px;
+            height: 320px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-family: Consolas, monospace;
+        }
+
+        .section {
+            margin-top: 18px;
+            padding-top: 12px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+
+<body>
+<div class="panel">
+    <h1>WebRTC Presenter Test</h1>
+
+    <p>
+        This page acts as the Presenter.
+        It captures your screen and sends it to the Display page through WebRTC.
+    </p>
+
+    <div class="section">
+        <h3>1. Join Room</h3>
+
+        <label>Room Code:</label>
+        <input id="roomInput" placeholder="Example: 812228">
+
+        <button onclick="joinRoom()">Join Room</button>
+        <button onclick="startScreenShare()">Start Screen Share</button>
+        <button onclick="stopScreenShare()">Stop</button>
+    </div>
+
+    <div class="section">
+        <h3>2. Local Preview</h3>
+        <video id="localVideo" autoplay muted playsinline></video>
+    </div>
+
+    <div class="section">
+        <h3>3. Log</h3>
+        <div id="log"></div>
+    </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<script>
+    const socket = io("http://127.0.0.1:5000");
+
+    let currentRoom = "";
+    const currentRole = "presenter";
+
+    let peerConnection = null;
+    let localStream = null;
+
+    let screenShareActive = false;
+    let isCleaningUp = false;
+
+    const pendingIceCandidates = [];
+
+    const rtcConfig = {
+        iceServers: [
+            { urls: "stun:stun.l.google.com:19302" }
+        ]
+    };
+
+    function log(message, data = null) {
+        const logBox = document.getElementById("log");
+        const time = new Date().toLocaleTimeString();
+
+        let line = `[${time}] ${message}`;
+
+        if (data !== null) {
+            line += "\n" + JSON.stringify(data, null, 2);
+        }
+
+        logBox.textContent += line + "\n\n";
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function prefillRoomCodeFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const roomFromUrl = params.get("room") || params.get("room_code");
+
+        if (!roomFromUrl) {
+            log("No room code found in URL. Please enter room code manually.");
+            return;
+        }
+
+        const cleanedRoomCode = roomFromUrl.trim();
+
+        document.getElementById("roomInput").value = cleanedRoomCode;
+
+        log("Room code pre-filled from URL", {
+            room: cleanedRoomCode
+        });
+    }
+
+    window.addEventListener("DOMContentLoaded", prefillRoomCodeFromUrl);
+
+    socket.on("connect", () => {
+        log("Connected to Socket.IO server", {
+            socketId: socket.id
+        });
+    });
+
+    socket.on("disconnect", () => {
+        log("Disconnected from Socket.IO server");
+    });
+
+    socket.on("connect_error", (error) => {
+        log("Connection error", {
+            message: error.message
+        });
+    });
+
+    socket.on("joined-screen-share-room", (data) => {
+        log("Presenter joined room", data);
+    });
+
+    socket.on("participant-joined", (data) => {
+        log("Another participant joined", data);
+    });
+
+    socket.on("screen-share-answer", async (data) => {
+        log("Received real WebRTC answer", data.answer);
+
+        if (!peerConnection) {
+            log("No peerConnection exists yet. Cannot apply answer.");
+            return;
+        }
+
+        await peerConnection.setRemoteDescription(
+            new RTCSessionDescription(data.answer)
+        );
+
+        log("Presenter set remote description from answer");
+
+        await flushPendingIceCandidates();
+    });
+
+    socket.on("ice-candidate", async (data) => {
+        log("Received ICE candidate from Display", data.candidate);
+
+        if (!data.candidate) {
+            return;
+        }
+
+        if (!peerConnection || !peerConnection.remoteDescription) {
+            pendingIceCandidates.push(data.candidate);
+            log("ICE candidate saved temporarily because remoteDescription is not ready yet");
+            return;
+        }
+
+        await peerConnection.addIceCandidate(
+            new RTCIceCandidate(data.candidate)
+        );
+
+        log("Presenter added ICE candidate");
+    });
+
+
+    socket.on("stop-screen-share", (data) => {
+        log("Received stop-screen-share from backend", data);
+        cleanupScreenShare("backend stop event");
+    });
+
+
+    socket.on("screen-share-error", (data) => {
+        log("Received screen-share-error", data);
+    });
+
+    function getRoomCode() {
+        const room = document.getElementById("roomInput").value.trim();
+
+        if (!room) {
+            alert("Please enter a room code first.");
+            return null;
+        }
+
+        return room;
+    }
+
+    function joinRoom() {
+        const room = getRoomCode();
+
+        if (!room) {
+            return;
+        }
+
+        currentRoom = room;
+
+        socket.emit("join-screen-share-room", {
+            room: currentRoom,
+            role: currentRole
+        });
+
+        log("Sent join-screen-share-room", {
+            room: currentRoom,
+            role: currentRole
+        });
+    }
+
+    function createPeerConnection() {
+        const pc = new RTCPeerConnection(rtcConfig);
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit("ice-candidate", {
+                    room: currentRoom,
+                    role: currentRole,
+                    candidate: event.candidate
+                });
+
+                log("Presenter sent ICE candidate", event.candidate);
+            }
+        };
+
+        pc.onconnectionstatechange = () => {
+            log("Presenter connection state changed", {
+                connectionState: pc.connectionState
+            });
+        };
+
+        pc.oniceconnectionstatechange = () => {
+            log("Presenter ICE connection state changed", {
+                iceConnectionState: pc.iceConnectionState
+            });
+        };
+
+        return pc;
+    }
+
+    async function startScreenShare() {
+        if (!currentRoom) {
+            alert("Please join a room first.");
+            return;
+        }
+
+        try {
+            log("Requesting screen capture permission...");
+
+            localStream = await navigator.mediaDevices.getDisplayMedia({
+                video: true,
+                audio: false
+            });
+
+            screenShareActive = true;
+
+            document.getElementById("localVideo").srcObject = localStream;
+
+            log("Screen capture started");
+
+            peerConnection = createPeerConnection();
+
+            localStream.getTracks().forEach((track) => {
+                peerConnection.addTrack(track, localStream);
+
+                track.onended = () => {
+                    log("Screen sharing track ended by browser");
+                    stopScreenShare();
+                };
+            });
+
+            log("Added screen tracks to peer connection");
+
+            const offer = await peerConnection.createOffer();
+
+            await peerConnection.setLocalDescription(offer);
+
+            log("Created and set local WebRTC offer", peerConnection.localDescription);
+
+            socket.emit("screen-share-offer", {
+                room: currentRoom,
+                role: currentRole,
+                offer: peerConnection.localDescription
+            });
+
+            log("Sent real screen-share-offer to Display");
+
+        } catch (error) {
+            log("Failed to start screen share", {
+                name: error.name,
+                message: error.message
+            });
+        }
+    }
+
+    async function flushPendingIceCandidates() {
+        if (!peerConnection || !peerConnection.remoteDescription) {
+            return;
+        }
+
+        while (pendingIceCandidates.length > 0) {
+            const candidate = pendingIceCandidates.shift();
+
+            await peerConnection.addIceCandidate(
+                new RTCIceCandidate(candidate)
+            );
+
+            log("Presenter added pending ICE candidate", candidate);
+        }
+    }
+
+<!--    function stopScreenShare() {-->
+<!--        socket.emit("stop-screen-share", {-->
+<!--            room: currentRoom,-->
+<!--            role: currentRole,-->
+<!--            reason: "presenter stopped screen share"-->
+<!--        });-->
+
+<!--        log("Sent stop-screen-share");-->
+
+<!--        cleanupScreenShare();-->
+<!--    }-->
+
+    async function stopScreenShare() {
+    if (!currentRoom) {
+        alert("No room code found. Please join a room first.");
+        return;
+    }
+
+    log("Requesting backend to end screen share session", {
+        room: currentRoom
+    });
+
+    try {
+        const response = await fetch(
+            `http://127.0.0.1:5000/api/screen-share/session/${currentRoom}/end`,
+            {
+                method: "POST"
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            log("Backend failed to end screen share session", result);
+
+            cleanupScreenShare();
+            return;
+        }
+
+        log("Backend ended screen share session", result);
+
+    } catch (error) {
+        log("Failed to call backend end session API", {
+            name: error.name,
+            message: error.message
+        });
+
+    } finally {
+        cleanupScreenShare("presenter stop button");
+    }
+}
+
+    function cleanupScreenShare(reason = "cleanup requested") {
+    if (isCleaningUp) {
+        log("Cleanup skipped because cleanup is already in progress", {
+            reason: reason
+        });
+        return;
+    }
+
+    if (!screenShareActive && !localStream && !peerConnection) {
+        log("Cleanup skipped because there is no active screen share", {
+            reason: reason
+        });
+        return;
+    }
+
+    isCleaningUp = true;
+    try {
+        if (localStream) {
+            localStream.getTracks().forEach((track) => {
+                track.stop();
+            });
+
+            localStream = null;
+        }
+
+        const localVideo = document.getElementById("localVideo");
+        localVideo.srcObject = null;
+
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+
+        pendingIceCandidates.length = 0;
+
+        screenShareActive = false;
+
+        log("Presenter cleaned up screen share", {
+            reason: reason
+        });
+
+    } finally {
+        isCleaningUp = false;
+    }
+}
+</script>
+</body>
+</html>

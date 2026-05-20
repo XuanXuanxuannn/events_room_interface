@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Screen Share Admin Test</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background: #f5f5f5;
+            color: #222;
+        }
+
+        .panel {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 950px;
+            margin: auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        .section {
+            margin-top: 20px;
+            padding-top: 14px;
+            border-top: 1px solid #ddd;
+        }
+
+        .status-box {
+            background: #222;
+            color: white;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 17px;
+            font-weight: bold;
+            margin-top: 12px;
+        }
+
+        .room-box {
+            background: #eef4ff;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 12px;
+            border: 1px solid #bdd3ff;
+        }
+
+        .room-code {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            color: #1d4ed8;
+        }
+
+        button {
+            padding: 9px 12px;
+            margin: 6px 4px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        input {
+            padding: 8px;
+            margin: 6px 4px;
+            font-size: 14px;
+            width: 180px;
+        }
+
+        a {
+            color: #1d4ed8;
+        }
+
+        #log {
+            background: #111;
+            color: #0f0;
+            padding: 15px;
+            height: 320px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-family: Consolas, monospace;
+            font-size: 13px;
+        }
+
+        .small-note {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+<div class="panel">
+    <h1>Screen Share Admin Test</h1>
+
+    <p>
+        This page is a minimal Admin control page for the screen share MVP.
+        It creates a screen share room, shows the room code, opens test pages,
+        and stops the current screen share session.
+    </p>
+
+    <div class="status-box" id="adminStatus">
+        Admin ready. No active room yet.
+    </div>
+
+    <div class="section">
+        <h3>1. Create Screen Share Session</h3>
+
+        <button onclick="createScreenShareSession()">
+            Create Screen Share Session
+        </button>
+
+        <button onclick="checkScreenState()">
+            Check Screen State
+        </button>
+
+        <div class="room-box">
+            <div>Current Room Code:</div>
+            <div id="roomCodeText" class="room-code">None</div>
+
+            <div class="small-note">
+                You can also manually enter a room code below if you already created one.
+            </div>
+
+            <label>Room Code:</label>
+            <input id="roomInput" placeholder="Example: 162029">
+
+            <button onclick="copyRoomCode()">Copy Room Code</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>2. Open Test Pages</h3>
+
+        <button onclick="openPresenterPage()">
+            Open Presenter Test Page
+        </button>
+
+        <button onclick="openDisplayPage()">
+            Open Display Test Page
+        </button>
+
+        <p class="small-note">
+            For now, the test pages may still require you to manually paste the room code.
+            This Admin page helps you create and copy the room code quickly.
+        </p>
+    </div>
+
+    <div class="section">
+        <h3>3. Stop Screen Share Session</h3>
+
+        <button onclick="stopScreenShareSession()">
+            Stop Current Session
+        </button>
+
+        <p class="small-note">
+            This calls POST /api/screen-share/session/&lt;room_code&gt;/end.
+            The backend should set screen_state back to billboard and notify Display.
+        </p>
+    </div>
+
+    <div class="section">
+        <h3>4. Log</h3>
+        <div id="log"></div>
+    </div>
+</div>
+
+<script>
+    const API_BASE = window.location.origin;
+
+    let currentRoomCode = "";
+    let currentSessionId = null;
+
+    function log(message, data = null) {
+        const logBox = document.getElementById("log");
+        const time = new Date().toLocaleTimeString();
+
+        let line = `[${time}] ${message}`;
+
+        if (data !== null) {
+            line += "\n" + JSON.stringify(data, null, 2);
+        }
+
+        logBox.textContent += line + "\n\n";
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function updateAdminStatus(message) {
+        const statusBox = document.getElementById("adminStatus");
+        statusBox.textContent = message;
+
+        log("Admin status updated", {
+            status: message
+        });
+    }
+
+    function setCurrentRoom(roomCode, sessionId = null) {
+        currentRoomCode = roomCode;
+        currentSessionId = sessionId;
+
+        document.getElementById("roomCodeText").textContent = roomCode || "None";
+        document.getElementById("roomInput").value = roomCode || "";
+
+        log("Current room updated", {
+            roomCode: currentRoomCode,
+            sessionId: currentSessionId
+        });
+    }
+
+    function getRoomCodeFromInput() {
+        const inputRoom = document.getElementById("roomInput").value.trim();
+
+        if (inputRoom) {
+            currentRoomCode = inputRoom;
+            document.getElementById("roomCodeText").textContent = inputRoom;
+        }
+
+        if (!currentRoomCode) {
+            alert("No room code available. Please create a session first.");
+            return null;
+        }
+
+        return currentRoomCode;
+    }
+
+    async function createScreenShareSession() {
+        updateAdminStatus("Creating screen share session...");
+
+        try {
+            const response = await fetch(`${API_BASE}/api/screen-share/session`, {
+                method: "POST"
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                updateAdminStatus("Failed to create screen share session.");
+                log("Create session failed", result);
+                return;
+            }
+
+            setCurrentRoom(result.room_code, result.session_id);
+
+            updateAdminStatus(
+                `Screen share room created. Room code: ${result.room_code}`
+            );
+
+            log("Screen share session created", result);
+
+        } catch (error) {
+            updateAdminStatus("Error while creating screen share session.");
+
+            log("Create session error", {
+                name: error.name,
+                message: error.message
+            });
+        }
+    }
+
+    async function stopScreenShareSession() {
+        const roomCode = getRoomCodeFromInput();
+
+        if (!roomCode) {
+            return;
+        }
+
+        updateAdminStatus(`Stopping screen share session ${roomCode}...`);
+
+        try {
+            const response = await fetch(
+                `${API_BASE}/api/screen-share/session/${roomCode}/end`,
+                {
+                    method: "POST"
+                }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                updateAdminStatus("Failed to stop screen share session.");
+                log("Stop session failed", result);
+                return;
+            }
+
+            if (result.already_ended) {
+                updateAdminStatus(
+                    `Screen share session ${roomCode} was already ended.`
+                );
+            } else {
+                updateAdminStatus(
+                    `Screen share session ${roomCode} ended. Screen returned to billboard.`
+                );
+            }
+
+            log("Stop session result", result);
+
+        } catch (error) {
+            updateAdminStatus("Error while stopping screen share session.");
+
+            log("Stop session error", {
+                name: error.name,
+                message: error.message
+            });
+        }
+    }
+
+    async function checkScreenState() {
+        updateAdminStatus("Checking screen state...");
+
+        try {
+            const response = await fetch(`${API_BASE}/api/screen/state`);
+            const result = await response.json();
+
+            if (!response.ok) {
+                updateAdminStatus("Failed to check screen state.");
+                log("Check screen state failed", result);
+                return;
+            }
+
+            updateAdminStatus(`Current screen mode: ${result.mode}`);
+
+            log("Current screen state", result);
+
+        } catch (error) {
+            updateAdminStatus("Error while checking screen state.");
+
+            log("Check screen state error", {
+                name: error.name,
+                message: error.message
+            });
+        }
+    }
+
+    async function copyRoomCode() {
+        const roomCode = getRoomCodeFromInput();
+
+        if (!roomCode) {
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(roomCode);
+
+            updateAdminStatus(`Room code ${roomCode} copied to clipboard.`);
+
+        } catch (error) {
+            updateAdminStatus("Could not copy automatically. Please copy manually.");
+
+            log("Copy room code failed", {
+                name: error.name,
+                message: error.message
+            });
+        }
+    }
+
+    function openPresenterPage() {
+        const roomCode = getRoomCodeFromInput();
+
+        if (!roomCode) {
+            return;
+        }
+
+        const url = `${API_BASE}/static/webrtc_presenter_test.html?room=${roomCode}`;
+
+        window.open(url, "_blank");
+
+        log("Opened Presenter test page", {
+            url: url,
+            note: "If the room code is not auto-filled, paste it manually."
+        });
+    }
+
+    function openDisplayPage() {
+        const roomCode = getRoomCodeFromInput();
+
+        if (!roomCode) {
+            return;
+        }
+
+        const url = `${API_BASE}/static/webrtc_display_test.html?room=${roomCode}`;
+
+        window.open(url, "_blank");
+
+        log("Opened Display test page", {
+            url: url,
+            note: "If the room code is not auto-filled, paste it manually."
+        });
+    }
+
+    updateAdminStatus("Admin ready. No active room yet.");
+</script>
+</body>
+</html>

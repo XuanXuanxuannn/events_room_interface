@@ -389,7 +389,7 @@
         <input id="password" type="password" placeholder="cbrin123" onkeydown="if(event.key==='Enter') login()" />
         <div id="loginError" class="error-message">Input error: username or password is incorrect.</div>
       </div>
-      <button class="login-btn" onclick="login()">Log In</button>
+      <button id="adminLoginBtn" class="login-btn" type="button" onclick="login()">Log In</button>
       <div class="hint">Demo credentials: admin / cbrin123.</div>
     </div>
   </section>
@@ -502,6 +502,49 @@
         </section>
 
         <section class="card">
+          <div class="card-header">
+            <h3 class="title" style="font-size:22px">Screen Share</h3>
+          </div>
+
+          <div class="panel-body">
+            <div class="connection-status-box">
+              <strong>Screen Share Status</strong>
+              <div id="screenShareAdminStatus">No screen share room created yet.</div>
+            </div>
+
+            <div class="connection-status-box" style="margin-top:12px;">
+              <strong>Room Code</strong>
+              <div id="screenShareRoomCode" style="font-size:28px;font-weight:900;letter-spacing:2px;color:#ffffff;margin-top:8px;">
+                None
+              </div>
+              <input id="screenShareRoomInput" placeholder="Room code" style="margin-top:10px;width:100%;" />
+            </div>
+
+            <div class="button-grid" style="margin-top:14px;">
+              <button class="btn" type="button" onclick="createScreenShareSessionFromAdmin()">
+                Create Screen Share Room
+              </button>
+
+              <button class="secondary-btn" type="button" onclick="openScreenShareDisplayFromAdmin()">
+                Open Display Page
+              </button>
+
+              <button class="secondary-btn" type="button" onclick="openScreenSharePresenterFromAdmin()">
+                Open Presenter Page
+              </button>
+
+              <button class="danger-btn" type="button" onclick="stopScreenShareSessionFromAdmin()">
+                Stop Screen Share
+              </button>
+
+              <button class="secondary-btn" type="button" onclick="checkScreenShareStateFromAdmin()">
+                Check Screen State
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
           <div class="card-header"><h3 class="title" style="font-size:22px">Idle Settings</h3></div>
           <div class="panel-body">
             <div class="setting-row">
@@ -603,6 +646,13 @@
     const API_BASE = window.CBRIN_API_BASE || (location.protocol === 'file:' ? 'http://localhost:3000' : '');
     const IDLE_SLIDES_API = '/api/idle-slides';
     const SERVER_INFO_API = '/api/server-info';
+
+    const SCREEN_SHARE_API_BASE = window.SCREEN_SHARE_API_BASE || 'http://127.0.0.1:5000';
+    const PRESENTATION_FRONTEND_BASE = window.PRESENTATION_FRONTEND_BASE || window.location.origin;
+
+    let screenShareCurrentRoomCode = '';
+    let screenShareCurrentSessionId = null;
+
     let ROOM_CODE = makeRandomRoomCode();
     let presentationJoinUrl = '';
     let presentationDisplayUrl = '';
@@ -630,6 +680,7 @@
     }
 
     function resetRoomCode() {
+      adminRoomSessionToken++;
       ROOM_CODE = makeRandomRoomCode();
       presentationJoinUrl = '';
       presentationDisplayUrl = '';
@@ -718,6 +769,152 @@
 
     let presentationDisplayWindow = null;
     let adminDisconnecting = false;
+    let adminRoomSessionToken = 0;
+
+    function updateScreenShareAdminStatus(message) {
+      const status = document.getElementById('screenShareAdminStatus');
+      if (status) status.textContent = message;
+      console.log('[Screen Share Admin]', message);
+    }
+
+    function setScreenShareCurrentRoom(roomCode, sessionId = null) {
+      screenShareCurrentRoomCode = roomCode || '';
+      screenShareCurrentSessionId = sessionId;
+
+      const roomText = document.getElementById('screenShareRoomCode');
+      const roomInput = document.getElementById('screenShareRoomInput');
+
+      if (roomText) roomText.textContent = screenShareCurrentRoomCode || 'None';
+      if (roomInput) roomInput.value = screenShareCurrentRoomCode || '';
+    }
+
+    function getScreenShareRoomFromAdminInput() {
+      const roomInput = document.getElementById('screenShareRoomInput');
+      const inputRoom = roomInput ? roomInput.value.trim() : '';
+
+      if (inputRoom) {
+        screenShareCurrentRoomCode = inputRoom;
+
+        const roomText = document.getElementById('screenShareRoomCode');
+        if (roomText) roomText.textContent = inputRoom;
+      }
+
+      if (!screenShareCurrentRoomCode) {
+        alert('No screen share room code available. Please create a room first.');
+        return null;
+      }
+
+      return screenShareCurrentRoomCode;
+    }
+
+    async function createScreenShareSessionFromAdmin() {
+      updateScreenShareAdminStatus('Creating screen share room...');
+
+      try {
+        const response = await fetch(`${SCREEN_SHARE_API_BASE}/api/screen-share/session`, {
+          method: 'POST'
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          updateScreenShareAdminStatus('Failed to create screen share room.');
+          console.error('Create screen share room failed:', result);
+          return;
+        }
+
+        setScreenShareCurrentRoom(result.room_code, result.session_id);
+
+        updateScreenShareAdminStatus(`Screen share room created: ${result.room_code}`);
+
+        console.log('Screen share session created:', result);
+
+      } catch (error) {
+        updateScreenShareAdminStatus('Error while creating screen share room.');
+        console.error('Create screen share room error:', error);
+      }
+    }
+
+    function openScreenSharePresenterFromAdmin() {
+      const roomCode = getScreenShareRoomFromAdminInput();
+      if (!roomCode) return;
+
+      const url =
+        `${PRESENTATION_FRONTEND_BASE}/presentation?room=12345678&screen_room=${encodeURIComponent(roomCode)}`;
+
+      window.open(url, '_blank');
+
+      updateScreenShareAdminStatus(`Opened formal Presentation page for screen share room ${roomCode}.`);
+    }
+
+    function openScreenShareDisplayFromAdmin() {
+      const roomCode = getScreenShareRoomFromAdminInput();
+      if (!roomCode) return;
+
+      const url =
+        `${PRESENTATION_FRONTEND_BASE}/idle?screen_room=${encodeURIComponent(roomCode)}`;
+
+      window.open(url, '_blank');
+
+      updateScreenShareAdminStatus(`Opened formal Idle Display page for screen share room ${roomCode}.`);
+    }
+
+    async function stopScreenShareSessionFromAdmin() {
+      const roomCode = getScreenShareRoomFromAdminInput();
+      if (!roomCode) return;
+
+      updateScreenShareAdminStatus(`Stopping screen share room ${roomCode}...`);
+
+      try {
+        const response = await fetch(`${SCREEN_SHARE_API_BASE}/api/screen-share/session/${encodeURIComponent(roomCode)}/end`, {
+          method: 'POST'
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          updateScreenShareAdminStatus('Failed to stop screen share session.');
+          console.error('Stop screen share failed:', result);
+          return;
+        }
+
+        if (result.already_ended) {
+          updateScreenShareAdminStatus(`Screen share room ${roomCode} was already ended.`);
+        } else {
+          updateScreenShareAdminStatus(`Screen share room ${roomCode} ended. Screen returned to billboard.`);
+        }
+
+        console.log('Stop screen share result:', result);
+
+      } catch (error) {
+        updateScreenShareAdminStatus('Error while stopping screen share session.');
+        console.error('Stop screen share error:', error);
+      }
+    }
+
+    async function checkScreenShareStateFromAdmin() {
+      updateScreenShareAdminStatus('Checking screen state...');
+
+      try {
+        const response = await fetch(`${SCREEN_SHARE_API_BASE}/api/screen/state`);
+        const result = await response.json();
+
+        if (!response.ok) {
+          updateScreenShareAdminStatus('Failed to check screen state.');
+          console.error('Check screen state failed:', result);
+          return;
+        }
+
+        updateScreenShareAdminStatus(`Current screen mode: ${result.mode}`);
+
+        console.log('Current screen state:', result);
+
+      } catch (error) {
+        updateScreenShareAdminStatus('Error while checking screen state.');
+        console.error('Check screen state error:', error);
+      }
+    }
+
     function updateConnectionStatus(text, state = 'idle') {
       const side = document.getElementById('adminConnectionStatus');
       const inline = document.getElementById('connectionStatusText');
@@ -759,9 +956,11 @@
 
     function startAdminPresentationListener() {
       if (adminPresentationEvents || !window.EventSource) return;
+      const localToken = adminRoomSessionToken;
       const room = encodeURIComponent(roomCompact());
       adminPresentationEvents = new EventSource('/api/presentation-events?room=' + room);
       adminPresentationEvents.onmessage = (event) => {
+        if (localToken !== adminRoomSessionToken || currentMode === 'idle') return;
         let msg;
         try { msg = JSON.parse(event.data || '{}'); } catch(e) { return; }
         if (msg.command === 'presence') {
@@ -1053,11 +1252,6 @@
 
     function backToIdle() {
       stopPresentation();
-      return;
-      connected = false;
-      currentSource = '-';
-      updateConnectButton();
-      showMode('idle');
     }
 
     function simulateConnect() {
@@ -1071,25 +1265,47 @@
 
     function stopPresentation() {
       adminDisconnecting = true;
+      adminRoomSessionToken++;
       const room = roomCompact();
+
+      if (adminPresentationEvents) {
+        try { adminPresentationEvents.close(); } catch(e) {}
+        adminPresentationEvents = null;
+      }
+
       fetch('/api/presentation-presence', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room, action: 'clear-room' })
       }).catch(() => {});
+
       fetch('/api/presentation-command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room, command: 'exit', seq: Date.now() * 1000 })
+        body: JSON.stringify({ room, command: 'exit', sender: 'admin-disconnect', seq: Date.now() * 1000 })
       }).catch(() => {});
+
       connected = false;
       currentSource = '-';
+      presentationJoinUrl = '';
+      presentationDisplayUrl = '';
       try { if (presentationDisplayWindow && !presentationDisplayWindow.closed) presentationDisplayWindow.close(); } catch(e) {}
+      presentationDisplayWindow = null;
+
       const frame = document.getElementById('adminDisplayFrame');
       if (frame) frame.src = 'about:blank';
+
+      const urlText = document.getElementById('presentationUrlText');
+      if (urlText) urlText.textContent = 'No active connection.';
+      const qr = document.getElementById('presentationQr');
+      if (qr) qr.removeAttribute('src');
+
       updateConnectionStatus('Disconnected. Click Connect to create a new room.', 'idle');
       updateConnectButton();
       showMode('idle');
+
+      // Keep the disconnect flag briefly so any delayed exit event is ignored as a stale disconnect.
+      setTimeout(() => { adminDisconnecting = false; }, 600);
     }
 
     function saveIdleDuration() {
@@ -1119,8 +1335,26 @@
       restartIdleTimer();
     }
 
+    // Robust admin login binding: keep inline onclick working and also bind click/Enter in JS.
     window.login = adminLogin;
-
+    document.addEventListener('DOMContentLoaded', function(){
+      const btn = document.getElementById('adminLoginBtn');
+      if (btn) btn.addEventListener('click', function(event){
+        event.preventDefault();
+        adminLogin();
+      });
+      const usernameInput = document.getElementById('username');
+      const passwordInput = document.getElementById('password');
+      [usernameInput, passwordInput].forEach(function(input){
+        if (!input) return;
+        input.addEventListener('keydown', function(event){
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            adminLogin();
+          }
+        });
+      });
+    });
 
     // Extra-safe binding for the wireless connect button. This avoids inline-handler/cache issues.
     document.addEventListener('DOMContentLoaded', () => {
