@@ -1,0 +1,13 @@
+
+# Production Node server
+server/node_modules/
+server/.env
+server/storage/app.db
+server/storage/app.db-*
+server/storage/uploads/*
+!server/storage/uploads/.gitkeep
+server/storage/presentations/*
+!server/storage/presentations/.gitkeep
+server/storage/converted/*
+!server/storage/converted/.gitkeep
+server/storage/backups/
