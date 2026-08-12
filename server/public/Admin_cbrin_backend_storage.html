@@ -365,6 +365,8 @@
     .app-page.presentation-live-fullscreen .side-col .panel-body{padding:0;}
     .app-page.presentation-live-fullscreen .side-col .button-grid{display:block;}
     .app-page.presentation-live-fullscreen #connectBtn{background:linear-gradient(135deg,#d94b67,#c73654);box-shadow:0 12px 28px rgba(217,75,103,.32);}
+    .app-page.presentation-live-fullscreen .side-col .connection-status-box{display:none;}
+    .app-page.presentation-live-fullscreen #connectBtn::after{content:' / Exit';}
 
   
 
@@ -823,16 +825,48 @@
       else clearInterval(idleTimer);
     }
 
+    function setAdminLiveFullscreen(on) {
+      if (!appPage) return;
+      appPage.classList.toggle('presentation-live-fullscreen', !!on);
+    }
+
+    function adminPageOrigin() {
+      // Browsers cannot reliably use https://0.0.0.0 — map it to localhost.
+      let origin = location.origin && location.origin !== 'null' ? location.origin : 'https://localhost:3000';
+      try {
+        const u = new URL(origin);
+        if (u.hostname === '0.0.0.0' || u.hostname === '[::]' || u.hostname === '::') {
+          u.hostname = 'localhost';
+          origin = u.origin;
+        }
+      } catch (_e) {}
+      return origin;
+    }
+
     function getFallbackPresentationJoinUrl() {
       const room = encodeURIComponent(roomCompact());
-      const origin = location.origin && location.origin !== 'null' ? location.origin : 'http://localhost:3000';
-      return origin + '/p/' + room;
+      return adminPageOrigin() + '/p/' + room;
     }
 
     function getFallbackPresentationDisplayUrl() {
       const room = encodeURIComponent(roomCompact());
-      const origin = location.origin && location.origin !== 'null' ? location.origin : 'http://localhost:3000';
-      return origin + '/display?room=' + room;
+      return adminPageOrigin() + '/display?room=' + room;
+    }
+
+    function getLocalAdminDisplayUrl() {
+      // Always same-origin as this Admin tab so the iframe does not hit a different
+      // LAN host / untrusted self-signed cert (which shows as "refused to connect").
+      return getFallbackPresentationDisplayUrl();
+    }
+
+    function withDisplayWaitingParam(url) {
+      try {
+        const u = new URL(url, adminPageOrigin());
+        u.searchParams.set('waiting', '1');
+        return u.toString();
+      } catch (_e) {
+        return String(url || '') + (String(url || '').includes('?') ? '&' : '?') + 'waiting=1';
+      }
     }
 
     let presentationDisplayWindow = null;
@@ -852,20 +886,23 @@
       }
     }
     function setAdminDisplayFrame(url) {
-      // Do not load /display inside the admin preview iframe. Loading it here would count
-      // as a display device and block the real presentation screen with a duplicate-login error.
-      presentationDisplayUrl = url || getFallbackPresentationDisplayUrl();
+      // Remember optional LAN display URL for QR/phone use, but embed locally.
+      if (url) presentationDisplayUrl = url;
+      if (!presentationDisplayUrl) presentationDisplayUrl = getLocalAdminDisplayUrl();
       const frame = document.getElementById('adminDisplayFrame');
-      if (frame && frame.src !== 'about:blank') frame.src = 'about:blank';
+      if (!frame) return;
+      const nextSrc = withDisplayWaitingParam(getLocalAdminDisplayUrl());
+      if (frame.getAttribute('src') === nextSrc) return;
+      frame.src = nextSrc;
     }
 
     function openPresentationDisplayWindow(url) {
-      presentationDisplayUrl = url || presentationDisplayUrl || getFallbackPresentationDisplayUrl();
+      // Fullscreen on this computer should also stay same-origin as Admin.
+      const localUrl = getLocalAdminDisplayUrl();
+      presentationDisplayUrl = url || presentationDisplayUrl || localUrl;
       try {
-        // Open the real display page only when presentation actually starts.
-        // Note: if the browser blocks this popup, the Admin will show a toast and the user can click Connect/Disconnect then Connect again, or open the display URL manually.
         const features = `popup=yes,fullscreen=yes,width=${screen.availWidth || 1280},height=${screen.availHeight || 720},left=0,top=0`;
-        presentationDisplayWindow = window.open(presentationDisplayUrl, 'cbrin_presentation_display', features);
+        presentationDisplayWindow = window.open(localUrl, 'cbrin_presentation_display', features);
         if (presentationDisplayWindow) {
           presentationDisplayWindow.focus();
         } else {
@@ -897,28 +934,34 @@
           if (presentationTitle) presentationTitle.textContent = 'Wireless presentation is live';
           if (presentationSource) presentationSource.textContent = 'Source: Wireless';
           if (presentationSourceBadge) presentationSourceBadge.textContent = 'Presentation Source: Wireless';
-          updateConnectionStatus('Presentation live. Press Disconnect to end the room.', 'live');
-          // Admin stays admin; presentation is in the separate display window.
-          if (!presentationDisplayWindow || presentationDisplayWindow.closed) {
-            openPresentationDisplayWindow(presentationDisplayUrl || getFallbackPresentationDisplayUrl());
-          } else {
+          updateConnectionStatus('Presentation live. Use Disconnect (top right) to exit.', 'live');
+          // Switch to the presentation panel so the admin iframe mirror is visible.
+          const frame = document.getElementById('adminDisplayFrame');
+          if (!frame || !frame.getAttribute('src') || frame.getAttribute('src') === 'about:blank') {
+            setAdminDisplayFrame(presentationDisplayUrl || getFallbackPresentationDisplayUrl());
+          }
+          showMode('presentation');
+          setAdminLiveFullscreen(true);
+          if (presentationDisplayWindow && !presentationDisplayWindow.closed) {
             try { presentationDisplayWindow.focus(); } catch(e) {}
           }
           updateConnectButton();
-          showMode('connect');
         }
         if (msg.command === 'exit') {
           connected = false;
           try { if (presentationDisplayWindow && !presentationDisplayWindow.closed) presentationDisplayWindow.close(); } catch(e) {}
+          setAdminLiveFullscreen(false);
           const frame = document.getElementById('adminDisplayFrame');
-          if (frame) frame.src = 'about:blank';
           if (adminDisconnecting || msg.sender === 'server-clear') {
+            if (frame) frame.src = 'about:blank';
             currentSource = '-';
             updateConnectionStatus('Disconnected. Click Connect to create a new room.', 'idle');
             updateConnectButton();
             showMode('idle');
             adminDisconnecting = false;
           } else {
+            // Keep the waiting display mirror ready for the next Start Presentation.
+            setAdminDisplayFrame(presentationDisplayUrl || getFallbackPresentationDisplayUrl());
             updateConnectionStatus('Presentation ended. Connection link is still active; the controller can start again, or press Disconnect.', 'waiting');
             updateConnectButton();
             showMode('connect');
@@ -936,12 +979,16 @@
         clearTimeout(timer);
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const info = await res.json();
-        const origin = (info.lanOrigins && info.lanOrigins[0]) || info.currentOrigin || location.origin;
-        const displayBase = info.displayUrl || (origin + '/display');
-        presentationDisplayUrl = displayBase + '?room=' + encodeURIComponent(roomCompact());
-        return origin + '/p/' + encodeURIComponent(roomCompact());
+        // Phones need the LAN origin in the QR code.
+        const lanOrigin = (info.lanOrigins && info.lanOrigins[0]) || info.currentOrigin || adminPageOrigin();
+        // Admin iframe / local display must stay on this browser's origin (not the LAN IP).
+        presentationDisplayUrl = getLocalAdminDisplayUrl();
+        setAdminDisplayFrame(presentationDisplayUrl);
+        return lanOrigin + '/p/' + encodeURIComponent(roomCompact());
       } catch (err) {
         console.warn('Could not get server info, using fallback URL:', err);
+        presentationDisplayUrl = getLocalAdminDisplayUrl();
+        setAdminDisplayFrame(presentationDisplayUrl);
         return fallback;
       }
     }
@@ -1109,7 +1156,8 @@
         updatePresentationQr(getFallbackPresentationJoinUrl());
         presentationDisplayUrl = getFallbackPresentationDisplayUrl();
         await clearRoomPresence();
-        // Do not open the display window yet. It should appear only after the controller clicks Start Presentation.
+        // Prefill the admin live preview with the waiting display for this room.
+        setAdminDisplayFrame(presentationDisplayUrl);
         startAdminPresentationListener();
         updateConnectionStatus('Waiting for controller to scan the QR code.', 'waiting');
       } else {
@@ -1156,8 +1204,10 @@
     }
 
     function openPresentationHere() {
-      if (!presentationJoinUrl) return;
-      window.open(presentationJoinUrl, '_blank', 'noopener');
+      // Open the room display fullscreen on this computer (same origin as Admin).
+      const frame = document.getElementById('adminDisplayFrame');
+      if (frame) frame.src = 'about:blank';
+      setTimeout(() => openPresentationDisplayWindow(getLocalAdminDisplayUrl()), 250);
     }
 
     async function copyPresentationLink() {
@@ -1171,7 +1221,7 @@
     }
 
     function enterPresentation() {
-      openPresentationDisplayWindow(presentationDisplayUrl || getFallbackPresentationDisplayUrl());
+      openPresentationHere();
     }
 
     function backToIdle() {
@@ -1184,7 +1234,7 @@
       if (presentationSource) presentationSource.textContent = 'Source: ' + currentSource;
       updateConnectButton();
       showMode('connect');
-      openPresentationDisplayWindow(presentationDisplayUrl || getFallbackPresentationDisplayUrl());
+      setAdminDisplayFrame(presentationDisplayUrl || getFallbackPresentationDisplayUrl());
     }
 
     function stopPresentation() {
@@ -1217,6 +1267,7 @@
       presentationDisplayUrl = '';
       try { if (presentationDisplayWindow && !presentationDisplayWindow.closed) presentationDisplayWindow.close(); } catch(e) {}
       presentationDisplayWindow = null;
+      setAdminLiveFullscreen(false);
 
       const frame = document.getElementById('adminDisplayFrame');
       if (frame) frame.src = 'about:blank';
@@ -1306,6 +1357,10 @@
 
     // Robust admin login binding: keep inline onclick working and also bind click/Enter in JS.
     window.login = adminLogin;
+    // Never use https://0.0.0.0 in the browser — it breaks iframes and cert trust.
+    if (location.hostname === '0.0.0.0' || location.hostname === '[::]' || location.hostname === '::') {
+      location.replace(location.href.replace(location.hostname, 'localhost'));
+    }
     document.addEventListener('DOMContentLoaded', function(){
       const btn = document.getElementById('adminLoginBtn');
       if (btn) btn.addEventListener('click', function(event){

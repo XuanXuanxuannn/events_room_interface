@@ -475,6 +475,19 @@
     body.display-role .demo-shell.presentation-active .presentation-toolbar{
       display:none !important;
     }
+    /* Embedded admin mirror stays clean; admin page owns Disconnect/Exit. */
+    body.display-role.embedded-display .demo-shell.presentation-active .top-exit{
+      display:none !important;
+    }
+    /* Controller always keeps a clear Exit while presenting. */
+    body.controller-role .demo-shell.presentation-active .top-exit{
+      display:block !important;
+      position:fixed !important;
+      left:14px !important;
+      top:14px !important;
+      z-index:1000003 !important;
+      pointer-events:auto !important;
+    }
     body.display-role .demo-shell.presentation-active,
     body.display-role .demo-shell.presentation-active .page-stage,
     body.display-role .demo-shell.presentation-active .slide-card,
@@ -729,7 +742,7 @@
 
   <section id="demoPage" class="page">
     <div class="demo-shell">
-      <button class="top-exit" onclick="exitFlow()">Exit</button>
+      <button class="top-exit" onclick="exitFlow()">End Presentation</button>
 
       <div class="tutorial-mask" id="tutorialMask" onclick="closeTutorial()">
         <div class="tutorial-card">
@@ -889,6 +902,9 @@
     const ROOM_ID = (params.get('room') || '12345678').replace(/\s/g, '') || '12345678';
     const PRESENTATION_ROLE = (location.pathname === '/display' || params.get('role') === 'display') ? 'display' : 'controller';
     const DISPLAY_WAITING_MODE = PRESENTATION_ROLE === 'display' && params.get('waiting') === '1';
+    const IS_EMBEDDED_DISPLAY = PRESENTATION_ROLE === 'display' && (() => {
+      try { return window.self !== window.top; } catch (_e) { return true; }
+    })();
     const CLIENT_STORAGE_KEY = 'cbrin-client-id-' + PRESENTATION_ROLE + '-' + ROOM_ID;
     const DISCONNECTED_STORAGE_KEY = 'cbrin-disconnected-' + PRESENTATION_ROLE + '-' + ROOM_ID;
     const CLIENT_ID = (() => {
@@ -951,6 +967,7 @@
     let presenceTimer = null;
     let sessionReady = false;
     document.body.classList.add(PRESENTATION_ROLE + '-role');
+    if (IS_EMBEDDED_DISPLAY) document.body.classList.add('embedded-display');
     if (IS_MOBILE_VIEW) document.body.classList.add('controller-mobile');
 
 
@@ -1047,13 +1064,19 @@
         }, { once:true });
         return true;
       } catch (err) {
+        // Embedded admin preview should still mirror slides even if the exclusive display slot is taken.
+        if (DISPLAY_WAITING_MODE || IS_EMBEDDED_DISPLAY) {
+          console.warn('Display presence unavailable; continuing as mirror:', err.message);
+          hideSessionOverlay();
+          return false;
+        }
         showSessionError(err.message);
         return false;
       }
     }
 
     function showFullscreenHint() {
-      if (PRESENTATION_ROLE !== 'display') return;
+      if (PRESENTATION_ROLE !== 'display' || IS_EMBEDDED_DISPLAY) return;
       const hint = document.getElementById('fullscreenHint');
       if (!hint || document.fullscreenElement) return;
       hint.classList.add('show');
@@ -1103,10 +1126,10 @@
       const btn = document.getElementById('controllerDisconnectBtn');
       if (!btn) return;
       const key = activeKey || (pages.choice && pages.choice.classList.contains('active') ? 'choice' : (pages.demo && pages.demo.classList.contains('active') ? 'demo' : ''));
-      // Only show Disconnect on the controller's Start Presentation / upload page.
-      // It should not float over the live presentation view.
-      btn.classList.toggle('show', key === 'choice' && sessionReady);
-      btn.style.display = (key === 'choice' && sessionReady) ? 'block' : 'none';
+      // Choice page: Disconnect from room. Demo page uses the End Presentation button instead.
+      const show = key === 'choice' && sessionReady;
+      btn.classList.toggle('show', show);
+      btn.style.display = show ? 'block' : 'none';
     }
     function showPage(key) {
       Object.values(pages).forEach(p => {
@@ -1377,6 +1400,7 @@
     }
 
     function requestPresentationFullscreen(fromUser = false) {
+      if (IS_EMBEDDED_DISPLAY) return Promise.resolve();
       const target = document.documentElement;
       const hint = document.getElementById('fullscreenHint');
       if (document.fullscreenElement) { if (hint) hint.classList.remove('show'); return Promise.resolve(); }
@@ -1415,9 +1439,10 @@
           if (PRESENTATION_ROLE === 'display') {
             hideSessionOverlay();
             // After Exit we release the display slot; reclaim it when a new presentation starts.
+            // For the admin iframe (waiting mode), still show content even if presence is contested.
             if (!sessionReady) {
               const ok = await startPresenceGuard();
-              if (!ok) return;
+              if (!ok && !DISPLAY_WAITING_MODE && !IS_EMBEDDED_DISPLAY) return;
             }
           }
           lastRemoteStartSeq = seq || Date.now();
@@ -1446,7 +1471,7 @@
             hideSessionOverlay();
             if (!sessionReady) {
               const ok = await startPresenceGuard();
-              if (!ok) return;
+              if (!ok && !DISPLAY_WAITING_MODE && !IS_EMBEDDED_DISPLAY) return;
             }
             joinDisplayScreenShareRoom(msg.screenRoom || msg.room || ROOM_ID);
           }
