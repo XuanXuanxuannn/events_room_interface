@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CBRIN Idle Billboard Display</title>
+  <style>
+    :root{--bg:#060414;--text:#fff;--muted:rgba(255,255,255,.72);--panel:rgba(9,6,25,.45)}
+    *{box-sizing:border-box} html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:Avenir,"Avenir Next",Arial,sans-serif;color:var(--text)}
+    .stage{position:fixed;inset:0;background:#060414;overflow:hidden;cursor:none}
+    .slide{position:absolute;inset:0;opacity:0;transition:opacity 900ms ease;background-size:cover;background-position:center;background-repeat:no-repeat;transform:scale(1.005)}
+    .slide.active{opacity:1}
+    .shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(6,4,20,.62) 0%,rgba(6,4,20,.22) 44%,rgba(6,4,20,.18) 100%);pointer-events:none}
+    .copy{position:absolute;z-index:3;left:5vw;bottom:6vh;max-width:min(720px,62vw);padding:24px 28px;border-radius:24px;background:var(--panel);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(8px)}
+    .eyebrow{font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:10px}.title{font-size:clamp(36px,5vw,84px);line-height:1.02;font-weight:900;margin:0}.desc{font-size:clamp(16px,1.6vw,24px);line-height:1.55;color:rgba(255,255,255,.86);margin:16px 0 0}.status{position:absolute;right:24px;bottom:20px;z-index:4;color:rgba(255,255,255,.58);font-size:13px;background:rgba(0,0,0,.22);padding:8px 12px;border-radius:999px}.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:40px}.empty-card{max-width:720px;padding:34px;border-radius:28px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06)}.empty h1{font-size:44px;margin:0 0 12px}.empty p{color:var(--muted);line-height:1.7}.hidden{display:none!important}
+    .screen-share-overlay{position:fixed;inset:0;z-index:50;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .screen-share-overlay.hidden{display:none!important}
+    .screen-share-video{width:100%;height:100%;object-fit:contain;background:#000}
+    .screen-share-display-status{position:absolute;left:24px;bottom:20px;z-index:52;color:rgba(255,255,255,.82);font-size:13px;background:rgba(0,0,0,.42);padding:8px 12px;border-radius:999px}
+    @media (max-width:700px){.copy{left:18px;right:18px;bottom:24px;max-width:none;padding:18px}.title{font-size:36px}.desc{font-size:16px}.status{display:none}}
+  </style>
+</head>
+<body>
+  <main class="stage" id="stage">
+    <div id="slideA" class="slide active"></div>
+    <div id="slideB" class="slide"></div>
+    <div class="shade"></div>
+    <section class="copy" id="copyBox">
+      <div class="eyebrow" id="typeText">CBRIN</div>
+      <h1 class="title" id="titleText">Loading billboard...</h1>
+      <p class="desc" id="descText">Images uploaded from the admin page will appear here.</p>
+    </section>
+    <div class="status" id="statusText">Idle display</div>
+    <section class="empty hidden" id="emptyState"><div class="empty-card"><h1>No idle slides yet</h1><p>Open the admin page and upload billboard images. This display will automatically refresh from the backend API.</p></div></section>
+    <section id="screenShareDisplayOverlay" class="screen-share-overlay hidden">
+      <video id="remoteScreenShareVideo" class="screen-share-video" autoplay playsinline></video>
+      <div id="screenShareDisplayStatus" class="screen-share-display-status">Screen share display is waiting.</div>
+    </section>
+  </main>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const API = '/api/idle-slides';
+  const ROTATE_MS = 9000;
+  const REFRESH_MS = 30000;
+  const params = new URLSearchParams(window.location.search);
+  const SCREEN_SHARE_API_BASE = window.SCREEN_SHARE_API_BASE || window.location.origin;
+  const SCREEN_SHARE_ROOM_ID = (params.get('screen_room') || params.get('screenRoom') || params.get('room') || '').replace(/\s/g, '');
+  const SCREEN_SHARE_RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+  let screenShareSocket = null;
+  let screenSharePeerConnection = null;
+  let pendingScreenShareIceCandidates = [];
+  let slides = [];
+  let index = 0;
+  let usingA = true;
+  const a = document.getElementById('slideA');
+  const b = document.getElementById('slideB');
+  const titleText = document.getElementById('titleText');
+  const descText = document.getElementById('descText');
+  const typeText = document.getElementById('typeText');
+  const statusText = document.getElementById('statusText');
+  const emptyState = document.getElementById('emptyState');
+  const copyBox = document.getElementById('copyBox');
+
+  function updateScreenShareDisplayStatus(message) {
+    const displayStatus = document.getElementById('screenShareDisplayStatus');
+    if (displayStatus) displayStatus.textContent = message;
+    if (statusText) statusText.textContent = message;
+    console.log('[Idle Display Screen Share]', message);
+  }
+
+  function showScreenShareOverlay() {
+    document.getElementById('screenShareDisplayOverlay').classList.remove('hidden');
+  }
+  function hideScreenShareOverlay() {
+    document.getElementById('screenShareDisplayOverlay').classList.add('hidden');
+  }
+
+  function cleanupIdleDisplayWebRTC(reason) {
+    if (screenSharePeerConnection) {
+      try { screenSharePeerConnection.close(); } catch (e) {}
+      screenSharePeerConnection = null;
+    }
+    pendingScreenShareIceCandidates = [];
+    const video = document.getElementById('remoteScreenShareVideo');
+    if (video) video.srcObject = null;
+    hideScreenShareOverlay();
+    updateScreenShareDisplayStatus('Screen share ended: ' + reason);
+  }
+
+  function createIdleDisplayPeerConnection(socket, room) {
+    const pc = new RTCPeerConnection(SCREEN_SHARE_RTC_CONFIG);
+    screenSharePeerConnection = pc;
+    pc.ontrack = (event) => {
+      const video = document.getElementById('remoteScreenShareVideo');
+      if (video) {
+        video.srcObject = event.streams[0] || new MediaStream([event.track]);
+        showScreenShareOverlay();
+        updateScreenShareDisplayStatus('Receiving screen share in room ' + room);
+      }
+    };
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit('ice-candidate', { room, candidate: event.candidate, role: 'display' });
+      }
+    };
+    return pc;
+  }
+
+  async function handleScreenShareOfferFromPresenter(offer, socket, room) {
+    const pc = createIdleDisplayPeerConnection(socket, room);
+    await pc.setRemoteDescription(offer);
+    for (const candidate of pendingScreenShareIceCandidates) {
+      try { await pc.addIceCandidate(candidate); } catch (e) {}
+    }
+    pendingScreenShareIceCandidates = [];
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.emit('screen-share-answer', { room, answer, role: 'display' });
+    updateScreenShareDisplayStatus('Answered screen share offer.');
+  }
+
+  function joinScreenShareRoomFromIdleDisplay() {
+    if (!SCREEN_SHARE_ROOM_ID) {
+      updateScreenShareDisplayStatus('No screen_room in URL. Billboard mode only.');
+      return;
+    }
+    if (!window.io) {
+      updateScreenShareDisplayStatus('Socket.IO client not loaded.');
+      return;
+    }
+    screenShareSocket = io(SCREEN_SHARE_API_BASE, { transports: ['websocket', 'polling'] });
+    const socket = screenShareSocket;
+    socket.on('connect', () => {
+      updateScreenShareDisplayStatus('Connected. Joining room ' + SCREEN_SHARE_ROOM_ID);
+      socket.emit('join-screen-share-room', { room: SCREEN_SHARE_ROOM_ID, role: 'display' });
+    });
+    const onJoined = (data) => updateScreenShareDisplayStatus('Joined room ' + data.room + ' as ' + data.role);
+    socket.on('joined-screen-share-room', onJoined);
+    socket.on('screen-share-room-joined', onJoined);
+    socket.on('screen-share-offer', async (data) => {
+      if (!data || !data.offer) return;
+      try {
+        await handleScreenShareOfferFromPresenter(data.offer, socket, SCREEN_SHARE_ROOM_ID);
+      } catch (err) {
+        updateScreenShareDisplayStatus('Failed to handle offer: ' + err.message);
+      }
+    });
+    socket.on('ice-candidate', async (data) => {
+      if (!data || !data.candidate) return;
+      if (!screenSharePeerConnection || !screenSharePeerConnection.remoteDescription) {
+        pendingScreenShareIceCandidates.push(data.candidate);
+        return;
+      }
+      try { await screenSharePeerConnection.addIceCandidate(data.candidate); } catch (e) {}
+    });
+    socket.on('stop-screen-share', () => cleanupIdleDisplayWebRTC('remote stop'));
+    socket.on('screen-share-error', (data) => updateScreenShareDisplayStatus((data && data.error) || 'Screen share error'));
+  }
+
+  function imageUrl(src){
+    if (!src) return '';
+    if (/^https?:\/\//i.test(src)) return src;
+    return src;
+  }
+  function showSlide(i){
+    if (!slides.length) {
+      emptyState.classList.remove('hidden'); copyBox.classList.add('hidden');
+      a.style.backgroundImage = ''; b.style.backgroundImage = '';
+      return;
+    }
+    emptyState.classList.add('hidden'); copyBox.classList.remove('hidden');
+    index = (i + slides.length) % slides.length;
+    const slide = slides[index];
+    const target = usingA ? b : a;
+    const current = usingA ? a : b;
+    target.style.backgroundImage = `url("${imageUrl(slide.src)}")`;
+    titleText.textContent = slide.title || 'CBRIN Event Space';
+    descText.textContent = slide.description || '';
+    typeText.textContent = (slide.type || 'CBRIN').toUpperCase();
+    statusText.textContent = `${index + 1} / ${slides.length}`;
+    target.classList.add('active'); current.classList.remove('active'); usingA = !usingA;
+  }
+  async function loadSlides(){
+    try{
+      const res = await fetch(API, { cache:'no-store' });
+      if (!res.ok) throw new Error('API failed');
+      const data = await res.json();
+      slides = Array.isArray(data) ? data.filter(s => s && s.src) : [];
+      if (index >= slides.length) index = 0;
+      showSlide(index);
+    }catch(err){
+      titleText.textContent = 'Cannot load idle slides';
+      descText.textContent = 'Check that the backend server is running.';
+      statusText.textContent = 'Offline';
+      console.error(err);
+    }
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') showSlide(index + 1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') showSlide(index - 1);
+    if (e.key.toLowerCase() === 'f' && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+  });
+  loadSlides();
+  setInterval(() => showSlide(index + 1), ROTATE_MS);
+  setInterval(loadSlides, REFRESH_MS);
+  joinScreenShareRoomFromIdleDisplay();
+</script>
+</body>
+</html>

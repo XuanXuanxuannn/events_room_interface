@@ -1,0 +1,18 @@
+[Unit]
+Description=CBRIN Events Room Node Server
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/opt/events-room/server
+EnvironmentFile=/opt/events-room/server/.env
+ExecStart=/usr/bin/node /opt/events-room/server/src/index.js
+Restart=always
+RestartSec=3
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

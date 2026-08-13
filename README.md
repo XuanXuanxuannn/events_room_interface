@@ -132,7 +132,26 @@ The repository now includes a working backend + demo-page integration for:
 - admin billboard image upload
 - uploaded-file listing with open links
 
-## Setup Instructions
+## Production Node server (recommended for LAN / on-prem)
+
+The production backend lives in [`server/`](server/). It replaces the demo single-file Node server and does not require Flask `:5000`.
+
+```bash
+cd server
+cp .env.example .env
+npm install
+npm run migrate
+npm run seed-admin
+npm start
+```
+
+Then open `http://localhost:3000/admin` (default `admin` / `cbrin123`).
+
+See [`server/README.md`](server/README.md) and [`server/deploy/DEPLOY.md`](server/deploy/DEPLOY.md) for Pi kiosk, systemd, backup, and LibreOffice conversion setup.
+
+The current UI demo is still also available under `demo/Event_Room_Interface_Demo_v.3.9/` for reference. The Flask `backend/` folder remains as a legacy/reference implementation.
+
+## Setup Instructions (legacy Flask backend)
 
 1. Create and activate a virtual environment
 

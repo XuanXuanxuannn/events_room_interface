@@ -1,0 +1,2782 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Events Room Presentation Demo</title>
+  <style>
+
+    :root{
+      --bg:#170f49;
+      --bg-soft:#211560;
+      --surface:#24185f;
+      --surface-2:#2c1d72;
+      --surface-3:#352688;
+      --line:rgba(255,255,255,.08);
+      --text:#ffffff;
+      --text-soft:#c7bdf7;
+      --white:#ffffff;
+      --accent:#a82e9b;
+      --accent-2:#d24896;
+      --shadow:0 26px 70px rgba(4, 2, 20, .40);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%}
+    body{
+      font-family:Avenir, "Avenir Next", Arial, Helvetica, sans-serif;
+      background:radial-gradient(circle at top left, #28197a 0%, var(--bg) 34%, #140c3f 100%);
+      color:var(--white);
+      overflow:hidden;
+    }
+    button,input,select{font:inherit}
+    button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+    .center-card{pointer-events:auto}
+    .page{min-height:100vh;display:none;position:relative;overflow:hidden;background:var(--bg)}
+    .page.active{display:block;z-index:1}
+    .hidden{display:none !important}
+    .page::before,.page::after{
+      content:"";position:absolute;pointer-events:none;z-index:0
+    }
+    .page::before{
+      top:-10px;left:-8px;width:120px;height:120px;border-radius:0 0 100px 0;background:#7e39b3;
+    }
+    .page::after{
+      right:-10px;bottom:-8px;width:150px;height:120px;border-radius:100px 0 0 0;background:#bf318f;
+    }
+
+    .center-wrap{
+      min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at top left, #28197a 0%, var(--bg) 34%, #140c3f 100%);position:relative;
+    }
+    .center-wrap::after,.split-layout::after,.demo-shell::after,.confirm-shell::after,.countdown-shell::after,.share-shell::after,.goodbye-shell::after{
+      content:"";position:absolute;left:28px;bottom:28px;width:52px;height:52px;opacity:.8;
+      background:radial-gradient(circle, rgba(255,255,255,.72) 0 6px, transparent 7px) 0 0/24px 24px;
+      pointer-events:none;
+    }
+    .center-card{
+      position:relative;z-index:1;width:min(520px,100%);background:linear-gradient(180deg, rgba(45,30,114,.98), rgba(34,22,92,.98));color:var(--text);
+      border:1px solid var(--line);border-radius:28px;padding:32px;box-shadow:var(--shadow); backdrop-filter:blur(10px);
+    }
+    .title{font-size:30px;font-weight:800;margin:0 0 10px;color:var(--text)}
+    .subtitle{color:var(--text-soft);line-height:1.7;font-size:14px}
+    .field{margin-top:18px}
+    .field label{display:block;margin-bottom:8px;font-size:13px;color:var(--text-soft);font-weight:700}
+    .field input,.field select{
+      width:100%;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:#1b114c;color:var(--text);outline:none;
+    }
+    .field input:focus,.field select:focus{
+      border-color:var(--accent);box-shadow:0 0 0 3px rgba(158,29,151,.12)
+    }
+
+    .primary-btn,.secondary-btn{
+      border-radius:14px;padding:14px 16px;cursor:pointer;color:#fff;font-weight:800;border:none;transition:.18s ease;
+    }
+    .primary-btn{background:linear-gradient(135deg, var(--accent), var(--accent-2));box-shadow:0 14px 30px rgba(168,46,155,.34)}
+    .secondary-btn{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.16);color:#fff}
+    .primary-btn:hover,.secondary-btn:hover,.top-exit:hover{transform:translateY(-1px)}
+    .actions{margin-top:22px;display:flex;gap:12px;flex-wrap:wrap}
+
+
+    /* v12 mobile login hardening: make the login card sit above every layer and use native form submission. */
+    #codePage.active{
+      position:fixed !important;
+      inset:0 !important;
+      z-index:999999 !important;
+      display:block !important;
+      pointer-events:auto !important;
+    }
+    #codePage .center-wrap,
+    #codePage .center-card,
+    #codePage form,
+    #codePage input,
+    #codePage button{
+      pointer-events:auto !important;
+      touch-action:manipulation;
+    }
+    #continueBtn{
+      position:relative;
+      z-index:1000001;
+      width:100%;
+      min-height:58px;
+      -webkit-user-select:none;
+      user-select:none;
+      -webkit-tap-highlight-color:rgba(255,255,255,.18);
+    }
+    #continueBtn:active,#continueBtn.pressed{
+      transform:scale(.985) !important;
+      filter:brightness(1.15);
+    }
+
+    .split-layout{
+      min-height:100vh;display:grid;grid-template-columns:1fr 1fr;background:radial-gradient(circle at top left, #28197a 0%, var(--bg) 34%, #140c3f 100%);position:relative;
+    }
+    .split-pane{
+      position:relative;z-index:1;padding:44px;border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;justify-content:center;
+    }
+    .split-pane:last-child{border-right:none}
+    .choice-box{
+      background:linear-gradient(180deg, rgba(45,30,114,.96), rgba(34,22,92,.96));color:var(--text);border:1px solid var(--line);border-radius:28px;padding:28px;min-height:340px;
+      display:flex;flex-direction:column;justify-content:center;box-shadow:var(--shadow);backdrop-filter:blur(10px)
+    }
+    .choice-icon{font-size:64px;margin-bottom:16px}
+    .choice-title{font-size:30px;font-weight:800}
+    .choice-desc{color:var(--text-soft);line-height:1.8;margin-top:14px}
+    .link-row{margin-top:24px}
+
+    .top-exit{
+      position:absolute;left:20px;top:20px;z-index:20;background:transparent;color:#fff;
+      border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:12px 16px;cursor:pointer;
+    }
+
+    .demo-shell,.confirm-shell,.countdown-shell,.share-shell,.goodbye-shell{
+      min-height:100vh;position:relative;background:radial-gradient(circle at top left, #28197a 0%, var(--bg) 34%, #140c3f 100%);overflow:hidden;
+    }
+    .page-stage,.confirm-stage{
+      position:absolute;inset:0;display:grid;place-items:center;padding:80px 100px;z-index:2;
+    }
+    .slide-card{
+      width:min(900px,100%);min-height:460px;background:linear-gradient(180deg, rgba(45,30,114,.97), rgba(34,22,92,.97));color:var(--text);border:1px solid var(--line);border-radius:34px;
+      display:flex;align-items:center;justify-content:center;flex-direction:column;box-shadow:var(--shadow);text-align:center;padding:30px;
+    }
+    .slide-big{font-size:88px;font-weight:800;letter-spacing:.06em;opacity:.96}
+    .slide-sub{margin-top:12px;color:var(--text-soft);font-size:18px}
+
+    .tap-layer{position:absolute;inset:0;z-index:3;display:grid;grid-template-columns:1fr 1fr}
+    .tap-zone{cursor:pointer}
+    .tap-zone:hover{background:rgba(255,255,255,.04)}
+
+    .tutorial-mask{
+      position:absolute;inset:0;background:rgba(13,8,39,.68);z-index:18;display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(6px);
+    }
+    .tutorial-card{
+      width:min(880px,100%);border-radius:30px;background:linear-gradient(180deg, rgba(45,30,114,.97), rgba(34,22,92,.97));color:var(--text);
+      border:1px solid var(--line);padding:34px;text-align:left;box-shadow:0 30px 90px rgba(4,2,20,.40);
+    }
+    .tutorial-title{font-size:34px;font-weight:800;margin-bottom:12px}
+    .tutorial-board{
+      margin-top:10px;border:1px dashed rgba(255,255,255,.16);border-radius:24px;padding:24px;min-height:320px;position:relative;background:rgba(255,255,255,.04);
+    }
+    .tutorial-left,.tutorial-right,.tutorial-exit{
+      position:absolute;border-radius:22px;background:rgba(255,255,255,.04);border:1px solid var(--line);
+      padding:18px 22px;box-shadow:0 10px 30px rgba(0,0,0,.08);
+    }
+    .tutorial-exit{left:18px;top:18px;font-size:18px;font-weight:800}
+    .tutorial-left{left:18px;top:50%;transform:translateY(-50%);max-width:230px}
+    .tutorial-right{right:18px;top:50%;transform:translateY(-50%);max-width:230px;text-align:right}
+    .tutorial-big{font-size:34px;font-weight:800;line-height:1;color:var(--text)}
+    .tutorial-small{margin-top:8px;font-size:14px;color:var(--text-soft);line-height:1.5}
+    .tutorial-tip{margin-top:18px;font-size:14px;color:var(--accent);text-align:center;font-weight:700}
+
+    .confirm-stage{padding:80px 100px}
+    .confirm-card{
+      width:min(940px,100%);min-height:460px;border-radius:34px;border:1px solid var(--line);background:var(--surface);
+      display:grid;grid-template-columns:1fr 1fr;overflow:hidden;box-shadow:var(--shadow)
+    }
+    .confirm-side{
+      padding:34px;display:flex;align-items:center;justify-content:center;text-align:center;border-right:1px solid #ece7f4;color:var(--text);
+    }
+    .confirm-side:last-child{border-right:none}
+    .confirm-side h2{font-size:34px;margin:0 0 10px}
+    .confirm-side p{color:var(--text-soft);line-height:1.8}
+
+    .countdown-shell,.share-shell,.goodbye-shell{
+      display:grid;place-items:center;text-align:center;padding:24px;
+    }
+    .count-big{font-size:120px;font-weight:800;margin:0}
+    .count-label,.goodbye-text{font-size:30px;margin-top:14px}
+    .share-tip{color:#ece8ff;margin-top:12px;line-height:1.8}
+    .screen-placeholder{
+      font-size:24px;color:#fff;border:1px solid rgba(255,255,255,.22);border-radius:26px;padding:32px 40px;background:rgba(255,255,255,.06);
+    }
+
+    .modal-mask{
+      position:fixed;inset:0;background:rgba(17,11,42,.58);display:none;align-items:center;justify-content:center;padding:24px;z-index:120;backdrop-filter:blur(6px);
+    }
+    .modal-mask.show{display:flex}
+    .modal{
+      width:min(520px,100%);background:linear-gradient(180deg, rgba(45,30,114,.97), rgba(34,22,92,.97));color:var(--text);border:1px solid var(--line);border-radius:28px;padding:28px;box-shadow:0 30px 90px rgba(0,0,0,.28);
+    }
+    .modal p{color:var(--text-soft);line-height:1.7}
+    .modal-actions{margin-top:18px;display:flex;justify-content:flex-end;gap:12px}
+    .modal .secondary-btn{background:linear-gradient(180deg, rgba(45,30,114,.97), rgba(34,22,92,.97));color:var(--text);border:1px solid var(--line)}
+
+    .toast{
+      position:fixed;right:24px;bottom:24px;background:var(--surface-3);color:#fff;border-radius:16px;
+      padding:14px 16px;box-shadow:0 10px 30px rgba(0,0,0,.22);display:none;z-index:200;
+    }
+
+
+    .error-message{
+      display:none;margin-top:10px;color:#ffb7c6;background:rgba(217,75,103,.14);
+      border:1px solid rgba(217,75,103,.34);border-radius:14px;padding:10px 12px;font-size:13px;line-height:1.5;
+    }
+    .error-message.show{display:block}
+    .upload-list{margin-top:18px;display:grid;gap:10px;max-height:260px;overflow:auto;padding-right:4px}
+    .file-card{
+      display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;
+      border:1px solid var(--line);background:rgba(255,255,255,.04);border-radius:18px;padding:14px;
+    }
+    .file-card.selected{border-color:var(--accent);box-shadow:0 0 0 3px rgba(168,46,155,.16)}
+    .file-name{font-weight:800;color:var(--text);word-break:break-word}
+    .file-meta{margin-top:6px;color:var(--text-soft);font-size:12px}
+    .mini-btn{border-radius:12px;padding:10px 12px;cursor:pointer;font-weight:800;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.03);color:#fff}
+    .selected-label{font-size:12px;color:#ffdaf6;margin-top:10px;line-height:1.5}
+    .presentation-viewer{width:100%;height:100%;display:flex;flex-direction:column;gap:14px;align-items:stretch;justify-content:center}
+    .presentation-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;color:var(--text-soft);font-size:13px}
+    .viewer-frame{flex:1;min-height:330px;border:1px solid rgba(255,255,255,.18);border-radius:22px;overflow:hidden;background:rgba(255,255,255,.05)}
+    .viewer-frame iframe,.viewer-frame object{width:100%;height:100%;border:0;background:#fff}
+    .ppt-placeholder{height:100%;display:grid;place-items:center;padding:30px;text-align:center;color:#fff;background:rgba(255,255,255,.04)}
+    .ppt-placeholder h3{font-size:34px;margin:0 0 12px}
+    .ppt-placeholder p{color:var(--text-soft);line-height:1.7;margin:8px 0}
+    .ppt-placeholder a{color:#fff;font-weight:800}
+
+    @media (max-width:900px){
+      .split-layout{grid-template-columns:1fr}
+      .split-pane{padding:24px}
+      .page-stage,.confirm-stage{padding:90px 56px}
+      .slide-big{font-size:58px}
+      .tutorial-title{font-size:28px}
+      .confirm-card{grid-template-columns:1fr}
+    }
+    @media (max-width:640px){
+      .center-card,.modal{padding:22px}
+      .page-stage,.confirm-stage{padding:90px 24px}
+      .slide-card{min-height:360px}
+      .slide-big{font-size:42px}
+      .count-big{font-size:82px}
+      .goodbye-text,.count-label{font-size:22px}
+    }
+
+
+    .brand-logo{display:block;width:auto;height:56px;object-fit:contain}
+    .brand-logo.large{height:74px;margin:0 auto 18px}
+    .brand-logo.corner{
+      position:absolute;left:24px;top:22px;height:42px;z-index:20;opacity:.98;
+      filter:drop-shadow(0 8px 18px rgba(0,0,0,.18));
+    }
+
+
+    /* Updated interaction fixes */
+    .brand-logo.corner{display:none !important}
+    .top-exit{
+      background:linear-gradient(135deg, #d94b67, #c73654) !important;
+      border:none !important;color:#fff !important;box-shadow:0 12px 28px rgba(217,75,103,.32);
+    }
+    .upload-picker-row{margin-top:18px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .screen-share-wrap{width:min(1100px,100%);display:grid;gap:18px;place-items:center}
+    .screen-share-video{width:100%;max-height:72vh;border-radius:28px;border:1px solid rgba(255,255,255,.22);background:#08051f;box-shadow:var(--shadow)}
+    .screen-share-status{color:#ece8ff;line-height:1.7;font-size:15px}
+
+
+    /* v3 presentation viewer and upload page fixes */
+    .upload-choice-box{min-height:520px;justify-content:flex-start}
+    .upload-actions-inline{display:flex;gap:12px;flex-wrap:wrap}
+    .page-upload-list{max-height:250px;margin-top:14px}
+    .upload-note{margin-top:14px;color:var(--text-soft);font-size:12px;line-height:1.55}
+
+    .upload-slider-wrap,.upload-slider-top,.file-slider,.upload-slider-selected{display:none !important}
+    .file-card{cursor:pointer}
+    .file-card:hover{border-color:rgba(255,255,255,.26);background:rgba(255,255,255,.07)}
+    .file-card .mini-btn{white-space:nowrap}
+    .demo-shell .page-stage{padding:74px 56px 38px}
+    .demo-shell .slide-card.fullscreen-viewer{
+      width:calc(100vw - 112px);height:calc(100vh - 112px);max-width:none;min-height:0;
+      padding:0;overflow:hidden;background:#0f0a33;border-radius:28px;
+    }
+    .presentation-viewer{width:100%;height:100%;min-height:0}
+    .presentation-toolbar{
+      flex:0 0 auto;padding:12px 16px;background:rgba(15,10,51,.96);border-bottom:1px solid rgba(255,255,255,.12);
+      display:flex;justify-content:space-between;align-items:center;gap:12px;color:#fff;font-size:13px;z-index:6;
+    }
+    .viewer-frame{flex:1;min-height:0;width:100%;background:#09061f;display:grid;place-items:center;overflow:hidden}
+    .viewer-frame iframe,.viewer-frame object,.viewer-frame video{width:100%;height:100%;border:0;background:#09061f}
+    .pptx-slide{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px;background:linear-gradient(180deg, rgba(45,30,114,.98), rgba(24,15,70,.98));}
+    .pptx-slide h2{font-size:48px;margin:0 0 24px;color:#fff;line-height:1.15}
+    .pptx-slide .pptx-lines{max-width:920px;color:#eee9ff;font-size:24px;line-height:1.55;white-space:pre-wrap}
+    .pptx-note{font-size:14px;color:var(--text-soft);line-height:1.7;max-width:760px;margin:0 auto}
+    .top-exit{background:linear-gradient(135deg, #d94b67, #c73654) !important;border:none !important;color:#fff !important;box-shadow:0 12px 28px rgba(217,75,103,.32)}
+    .brand-logo.corner{display:none !important}
+    .tap-layer{pointer-events:auto}
+    .tap-zone{pointer-events:auto}
+
+
+    /* v5: full-screen presentation viewer and controls */
+    .demo-shell.presentation-active{
+      background:#000 !important;
+    }
+    .demo-shell.presentation-active::before,
+    .demo-shell.presentation-active::after,
+    .demo-shell.presentation-active .brand-logo.corner{
+      display:none !important;
+    }
+    .demo-shell.presentation-active .page-stage{
+      inset:0 !important;
+      padding:0 !important;
+      display:block !important;
+      background:#000 !important;
+      z-index:2;
+    }
+    .demo-shell.presentation-active .slide-card,
+    .slide-card.fullscreen-viewer{
+      width:100vw !important;
+      height:100vh !important;
+      min-height:100vh !important;
+      border:none !important;
+      border-radius:0 !important;
+      box-shadow:none !important;
+      background:#000 !important;
+      padding:0 !important;
+      margin:0 !important;
+      display:block !important;
+      overflow:hidden !important;
+    }
+    .presentation-viewer{
+      width:100%;height:100%;display:block;background:#000;color:#fff;overflow:hidden;
+    }
+    .presentation-toolbar{
+      position:absolute;left:0;right:0;top:0;height:48px;padding:10px 76px 10px 118px;
+      background:rgba(0,0,0,.72);border-bottom:1px solid rgba(255,255,255,.14);
+      display:flex;justify-content:space-between;align-items:center;gap:12px;color:#fff;font-size:13px;z-index:12;
+      backdrop-filter:blur(8px);
+    }
+    .presentation-toolbar span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:46vw}
+    .viewer-frame{
+      position:absolute;inset:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;
+    }
+    .pdf-canvas-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;padding:54px 72px 64px;touch-action:none;cursor:grab;user-select:none}
+    .pdf-canvas-wrap.dragging{cursor:grabbing}
+    #pdfCanvas{display:block;background:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.12);flex:0 0 auto;transform-origin:center center;will-change:transform}
+    .native-pdf-frame{position:absolute;inset:48px 0 0;width:100%;height:calc(100% - 48px);border:0;background:#000}
+    .pptx-slide{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:86px 120px;background:#000;transform-origin:center center;cursor:grab;user-select:none;will-change:transform}
+    .pptx-slide.dragging{cursor:grabbing}
+    .pptx-slide h2{font-size:clamp(36px,6vw,82px);margin:0 0 28px;color:#fff;line-height:1.12;max-width:1180px}
+    .pptx-slide .pptx-lines{max-width:1120px;color:#f3f0ff;font-size:clamp(20px,2.2vw,36px);line-height:1.55;white-space:pre-wrap}
+    .pptx-note{font-size:18px;color:#f3f0ff;line-height:1.8;max-width:860px;margin:0 auto}
+    .presentation-controls{position:absolute;inset:0;z-index:15;pointer-events:none}
+    .nav-btn,.zoom-btn{
+      pointer-events:auto;position:absolute;border:none;border-radius:999px;cursor:pointer;color:#fff;font-weight:900;
+      background:rgba(0,0,0,.58);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(8px);
+      box-shadow:0 12px 30px rgba(0,0,0,.28);transition:.18s ease;
+    }
+    .nav-btn:hover,.zoom-btn:hover{background:rgba(168,46,155,.86);transform:translateY(-1px)}
+    .nav-left,.nav-right{top:50%;transform:translateY(-50%);width:58px;height:96px;font-size:34px;border-radius:20px}
+    .nav-left:hover,.nav-right:hover{transform:translateY(-50%) scale(1.02)}
+    .nav-left{left:16px}.nav-right{right:16px}
+    .nav-up,.nav-down{left:50%;transform:translateX(-50%);width:132px;height:44px;font-size:20px;border-radius:18px}
+    .nav-up{top:58px}.nav-down{bottom:18px}
+    .nav-up:hover,.nav-down:hover{transform:translateX(-50%) scale(1.02)}
+    .zoom-controls,.zoom-btn{display:none !important}
+    .top-exit{z-index:30;background:linear-gradient(135deg,#d94b67,#c73654)!important;border:none!important;color:#fff!important;box-shadow:0 12px 28px rgba(217,75,103,.32)}
+    .demo-shell.presentation-active .top-exit{left:16px;top:10px;position:absolute}
+    .tap-layer{display:none !important}
+    .viewer-message{color:#fff;background:#000;padding:40px;text-align:center;font-size:18px;line-height:1.8}
+
+    @media (max-width:640px){
+      .presentation-toolbar{height:44px;padding:8px 58px 8px 92px;font-size:11px}
+      .presentation-toolbar span{max-width:36vw}
+      .nav-left,.nav-right{width:46px;height:76px;font-size:28px;opacity:.78}
+      .nav-left{left:8px}.nav-right{right:8px}
+      .nav-up,.nav-down{width:92px;height:38px;font-size:16px;opacity:.78}
+      .nav-up{top:52px}.nav-down{bottom:12px}
+      .pdf-canvas-wrap{padding:50px 52px 56px}
+      .pptx-slide{padding:72px 64px 64px}
+    }
+
+
+    /* mobile presentation fixes: when the choice page is active, let the BODY scroll, not a nested panel. */
+    html.choice-scroll-mode, body.choice-scroll-mode{
+      height:auto !important;
+      min-height:100% !important;
+      overflow-y:auto !important;
+      overflow-x:hidden !important;
+      overscroll-behavior-y:auto;
+    }
+    body.choice-scroll-mode #choicePage.active{
+      position:relative !important;
+      display:block !important;
+      min-height:100dvh !important;
+      height:auto !important;
+      overflow:visible !important;
+    }
+    body.choice-scroll-mode #choicePage.active .split-layout{
+      min-height:100dvh !important;
+      height:auto !important;
+      overflow:visible !important;
+    }
+    @media (max-width:900px){
+      body.choice-scroll-mode #choicePage.active .split-layout{display:block !important; padding-bottom:36px;}
+      body.choice-scroll-mode #choicePage.active .split-pane{min-height:auto !important; padding:18px !important; display:block !important; border-right:none !important;}
+      body.choice-scroll-mode #choicePage.active .choice-box{min-height:auto !important;}
+      body.choice-scroll-mode #choicePage.active .upload-choice-box{min-height:auto !important;}
+      body.choice-scroll-mode #choicePage.active .upload-list{max-height:none !important; overflow:visible !important;}
+      body.choice-scroll-mode #choicePage.active .file-card{grid-template-columns:1fr !important;}
+    }
+
+
+
+    /* vNext: make the controller choice page scroll before and after file upload. */
+    html:has(#choicePage.active), body:has(#choicePage.active){
+      height:auto !important;
+      min-height:100% !important;
+      overflow-y:auto !important;
+      overflow-x:hidden !important;
+      overscroll-behavior-y:auto;
+    }
+    #choicePage.active{
+      position:relative !important;
+      min-height:100dvh !important;
+      height:auto !important;
+      overflow:visible !important;
+    }
+    #choicePage.active .split-layout{
+      height:auto !important;
+      overflow:visible !important;
+    }
+    @media (max-width:900px){
+      #choicePage.active .split-layout{display:block !important; padding-bottom:44px;}
+      #choicePage.active .split-pane{min-height:auto !important; padding:18px !important; display:block !important; border-right:none !important;}
+      #choicePage.active .choice-box,#choicePage.active .upload-choice-box{min-height:auto !important;}
+      #choicePage.active .upload-list{max-height:none !important; overflow:visible !important;}
+      #choicePage.active .file-card{grid-template-columns:1fr !important;}
+    }
+
+
+    /* final mobile + fullscreen fixes */
+    body.controller-mobile #choicePage.active,
+    body.controller-mobile #choicePage.active .split-layout,
+    body.controller-mobile #choicePage.active .split-pane,
+    body.controller-mobile #choicePage.active .choice-box{
+      position:relative !important;
+      height:auto !important;
+      min-height:0 !important;
+      max-height:none !important;
+      overflow:visible !important;
+    }
+    body.controller-mobile #choicePage.active{min-height:100dvh !important; padding-bottom:40px !important;}
+    body.controller-mobile #choicePage.active .split-layout{display:block !important;}
+    body.controller-mobile #choicePage.active .split-pane{display:block !important; padding:18px !important; border-right:none !important;}
+    body.controller-mobile #choicePage.active .upload-choice-box{min-height:auto !important;}
+    body.controller-mobile #choicePage.active .upload-list{max-height:none !important; overflow:visible !important;}
+    .mobile-share-note{display:none;margin-top:14px;color:#ffdaf6;line-height:1.6;font-size:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:14px;}
+    body.controller-mobile .screen-share-choice .field,
+    body.controller-mobile .screen-share-choice .link-row{display:none !important;}
+    body.controller-mobile .screen-share-choice .choice-desc{display:none !important;}
+    body.controller-mobile .screen-share-choice .mobile-share-note{display:block !important;}
+
+    /* Hide screen sharing completely on phone/tablet controller. Mobile browsers usually cannot share system screens. */
+    body.controller-mobile .screen-share-pane{display:none !important;}
+    body.controller-mobile #choicePage.active .split-layout{grid-template-columns:1fr !important;}
+
+    .demo-shell.presentation-active .presentation-toolbar{display:none !important;}
+
+
+    /* sync/fullscreen final polish */
+    body.display-role .demo-shell.presentation-active .top-exit,
+    body.display-role .demo-shell.presentation-active .presentation-controls,
+    body.display-role .demo-shell.presentation-active .presentation-toolbar{
+      display:none !important;
+    }
+    /* Embedded admin mirror stays clean; admin page owns Disconnect/Exit. */
+    body.display-role.embedded-display .demo-shell.presentation-active .top-exit{
+      display:none !important;
+    }
+    /* Controller always keeps a clear Exit while presenting. */
+    body.controller-role .demo-shell.presentation-active .top-exit{
+      display:block !important;
+      position:fixed !important;
+      left:14px !important;
+      top:14px !important;
+      z-index:1000003 !important;
+      pointer-events:auto !important;
+    }
+    body.display-role .demo-shell.presentation-active,
+    body.display-role .demo-shell.presentation-active .page-stage,
+    body.display-role .demo-shell.presentation-active .slide-card,
+    body.display-role .demo-shell.presentation-active .viewer-frame{
+      cursor:none;
+    }
+    body.controller-mobile .zoom-controls{display:none !important;}
+    body.controller-mobile .nav-up, body.controller-mobile .nav-down{display:none !important;}
+    body.controller-mobile .demo-shell.presentation-active .nav-up,
+    body.controller-mobile .demo-shell.presentation-active .nav-down{display:block !important;}
+    body.controller-mobile #demoPage.active,
+    body.controller-mobile #demoPage.active .demo-shell.presentation-active,
+    body.controller-mobile #demoPage.active .viewer-frame,
+    body.controller-mobile #demoPage.active .pptx-slide,
+    body.controller-mobile #demoPage.active .pdf-canvas-wrap{touch-action:none !important;overscroll-behavior:none !important;-webkit-user-select:none;user-select:none;}
+    body.controller-mobile #controllerDisconnectBtn{display:none;}
+    body.controller-mobile #controllerDisconnectBtn.show{display:block;}
+    body.controller-mobile .demo-shell.presentation-active{height:100dvh !important;min-height:100dvh !important;overflow:hidden !important;}
+    body.controller-mobile .demo-shell.presentation-active .page-stage{height:100dvh !important;min-height:100dvh !important;}
+    body.controller-mobile .demo-shell.presentation-active .slide-card{height:100dvh !important;min-height:100dvh !important;}
+    body.controller-mobile .demo-shell.presentation-active .viewer-frame{height:100dvh !important;}
+    body.controller-mobile.choice-scroll-mode,
+    body.controller-mobile.choice-scroll-mode #choicePage,
+    body.controller-mobile.choice-scroll-mode #choicePage *{
+      -webkit-overflow-scrolling:touch;
+      touch-action:pan-y;
+    }
+    body.controller-mobile.choice-scroll-mode{
+      overflow-y:scroll !important;
+      position:static !important;
+      height:auto !important;
+    }
+    .demo-shell.presentation-active .native-pdf-frame{inset:0 !important;width:100% !important;height:100% !important;}
+    .demo-shell.presentation-active .pdf-canvas-wrap{padding:0 !important;}
+    .demo-shell.presentation-active .pptx-slide{padding:52px 84px !important;}
+    .zoom-controls{position:absolute;right:16px;bottom:18px;display:flex !important;gap:8px;pointer-events:auto;z-index:18;}
+    .session-error-screen,.fullscreen-hint{position:fixed;inset:0;z-index:999999;background:#09061f;color:#fff;display:none;align-items:center;justify-content:center;text-align:center;padding:28px;}
+    .session-error-screen.show,.fullscreen-hint.show{display:flex;}
+    .session-error-card,.fullscreen-hint-card{max-width:560px;border-radius:26px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);padding:28px;box-shadow:0 24px 80px rgba(0,0,0,.35);}
+    .session-error-card h2,.fullscreen-hint-card h2{margin:0 0 12px;font-size:28px;}
+    .session-error-card p,.fullscreen-hint-card p{margin:0;color:#d8d1ff;line-height:1.7;}
+    .zoom-btn{position:static !important;display:inline-flex !important;align-items:center;justify-content:center;min-width:46px;height:42px;padding:0 12px;border-radius:16px;font-size:18px;}
+    .zoom-reset{font-size:13px;min-width:62px;}
+    @media (max-width:640px){
+      .zoom-controls{right:10px;bottom:10px;gap:6px;}
+      .zoom-btn{min-width:42px;height:38px;font-size:17px;border-radius:14px;}
+      .zoom-reset{min-width:56px;font-size:12px;}
+      .nav-down{bottom:58px !important;}
+      .demo-shell.presentation-active .pptx-slide{padding:44px 54px !important;}
+    }
+
+
+    /* Mobile file switch buttons: keep both previous/next file controls visible without relying on vertical edge buttons. */
+    .mobile-file-button-row{display:none;position:absolute;left:50%;bottom:64px;transform:translateX(-50%);z-index:32;gap:10px;pointer-events:auto;}
+    .mobile-file-switch-btn{border:none;border-radius:16px;padding:11px 14px;cursor:pointer;color:#fff;font-weight:900;background:rgba(0,0,0,.68);border:1px solid rgba(255,255,255,.24);backdrop-filter:blur(8px);box-shadow:0 12px 30px rgba(0,0,0,.28);}
+    body.controller-mobile .demo-shell.presentation-active .nav-up,
+    body.controller-mobile .demo-shell.presentation-active .nav-down{display:none !important;}
+    body.controller-mobile .demo-shell.presentation-active .mobile-file-button-row{display:flex !important;}
+    @media (max-width:640px){
+      .mobile-file-button-row{bottom:58px;gap:8px;}
+      .mobile-file-switch-btn{padding:10px 12px;font-size:13px;border-radius:14px;}
+    }
+
+
+    /* iPad/controller fallback: iPadOS may report itself as a desktop Mac, so do not rely only on controller-mobile.
+       In controller presentation mode, always show both file switch buttons as a fixed centered row. */
+    body.controller-role .demo-shell.presentation-active .nav-up,
+    body.controller-role .demo-shell.presentation-active .nav-down{display:none !important;}
+    body.controller-role .demo-shell.presentation-active .mobile-file-button-row{
+      display:flex !important;
+      position:fixed !important;
+      left:50% !important;
+      right:auto !important;
+      bottom:calc(env(safe-area-inset-bottom, 0px) + 20px) !important;
+      top:auto !important;
+      transform:translateX(-50%) !important;
+      z-index:2147483000 !important;
+      gap:12px !important;
+      pointer-events:auto !important;
+      width:auto !important;
+      max-width:calc(100vw - 24px) !important;
+      justify-content:center !important;
+      align-items:center !important;
+      flex-wrap:nowrap !important;
+    }
+    body.controller-role .demo-shell.presentation-active .mobile-file-switch-btn{
+      display:inline-flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      min-width:118px !important;
+      white-space:nowrap !important;
+      pointer-events:auto !important;
+    }
+    @supports (bottom: constant(safe-area-inset-bottom)){
+      body.controller-role .demo-shell.presentation-active .mobile-file-button-row{bottom:calc(constant(safe-area-inset-bottom) + 20px) !important;}
+    }
+
+  </style>
+</head>
+<body>
+
+  <script>
+    // v12: independent mobile-safe login. Uses native form submit and capture-phase touch/click fallback.
+    window.forceContinueToChoice = function(event){
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+      }
+      var btn = document.getElementById('continueBtn');
+      if (btn) btn.classList.add('pressed');
+      setTimeout(function(){ if (btn) btn.classList.remove('pressed'); }, 160);
+
+      var input = document.getElementById('joinCode');
+      var value = (input && input.value ? input.value : '').trim();
+      var okCodes = ['12345678', '1234 5678', 'CBRIN'];
+      var error = document.getElementById('codeError');
+      if (okCodes.indexOf(value) === -1) {
+        if (error) {
+          error.textContent = 'Input error: meeting code is incorrect. Please check the code and try again.';
+          error.classList.add('show');
+          error.style.display = 'block';
+        }
+        return false;
+      }
+      if (error) { error.classList.remove('show'); error.style.display = ''; }
+
+      var codePage = document.getElementById('codePage');
+      var choicePage = document.getElementById('choicePage');
+      if (codePage) {
+        codePage.classList.remove('active');
+        codePage.style.display = '';
+      }
+      if (choicePage) {
+        choicePage.style.display = '';
+        choicePage.classList.add('active');
+      }
+      document.body.classList.add('choice-scroll-mode');
+      document.documentElement.classList.add('choice-scroll-mode');
+      document.body.style.overflow = 'auto';
+      document.documentElement.style.overflow = 'auto';
+      if (window.matchMedia('(max-width: 900px)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) document.body.classList.add('controller-mobile');
+      if (window.renderUploadedFiles) window.renderUploadedFiles();
+      return false;
+    };
+    window.__continueFromCode = window.forceContinueToChoice;
+
+    document.addEventListener('DOMContentLoaded', function(){
+      var form = document.getElementById('loginForm');
+      var btn = document.getElementById('continueBtn');
+      var input = document.getElementById('joinCode');
+      if (form) form.addEventListener('submit', window.forceContinueToChoice, true);
+      if (input) {
+        input.addEventListener('keydown', function(event){
+          if (event.key === 'Enter') window.forceContinueToChoice(event);
+        }, true);
+      }
+      if (btn) {
+        btn.addEventListener('touchstart', function(){ btn.classList.add('pressed'); }, { passive:true, capture:true });
+        btn.addEventListener('touchcancel', function(){ btn.classList.remove('pressed'); }, { passive:true, capture:true });
+        btn.addEventListener('touchend', window.forceContinueToChoice, { passive:false, capture:true });
+        btn.addEventListener('pointerup', window.forceContinueToChoice, { passive:false, capture:true });
+        btn.addEventListener('click', window.forceContinueToChoice, true);
+      }
+    });
+
+
+    // If the admin QR/link includes ?room=12345678, enter the presentation choice page directly.
+    document.addEventListener('DOMContentLoaded', function(){
+      try {
+        var params = new URLSearchParams(window.location.search);
+        var room = (params.get('room') || params.get('code') || '').trim();
+        var okRooms = ['12345678', '1234 5678', 'CBRIN'];
+        if (okRooms.indexOf(room) !== -1) {
+          var input = document.getElementById('joinCode');
+          if (input) input.value = room;
+          window.forceContinueToChoice();
+        }
+      } catch (err) {
+        console.warn('Auto room join failed:', err);
+      }
+    });
+  </script>
+
+  <section id="codePage" class="page active">
+    <div class="center-wrap">
+      <div class="center-card">
+        <form id="loginForm" autocomplete="off" onsubmit="return window.forceContinueToChoice(event)">
+          <h1 class="title">Enter Code</h1>
+          <p class="subtitle">Enter the room code to begin the branded presentation flow.</p>
+          <div class="field">
+            <label for="joinCode">Code</label>
+            <input id="joinCode" name="joinCode" placeholder="Enter code" inputmode="text" autocomplete="one-time-code" />
+            <div id="codeError" class="error-message">Input error: meeting code is incorrect. Please check the code and try again.</div>
+          </div>
+          <div class="actions">
+            <button id="continueBtn" type="submit" class="primary-btn">Continue</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section id="choicePage" class="page">
+    <div class="split-layout">
+      <div class="split-pane">
+        <div class="choice-box upload-choice-box">
+          <div class="choice-icon">📤</div>
+          <div class="choice-title">Upload</div>
+          <div class="choice-desc">Upload a new PDF or PowerPoint, or choose a file previously stored on this server. Select a file, then click Start Presentation.</div>
+          <input id="presentationFileInput" type="file" accept=".pdf,.ppt,.pptx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple class="hidden" onchange="handlePresentationFiles(event)" />
+          <div class="link-row upload-actions-inline">
+            <button class="primary-btn" onclick="triggerPresentationFilePicker()">Choose PDF / PowerPoint</button>
+            <button class="secondary-btn" onclick="startSelectedPresentation()">Start Presentation</button>
+          </div>
+          <div id="uploadError" class="error-message">Input error: please upload a PDF or PowerPoint file.</div>
+          <div id="selectedFileLabel" class="selected-label">No file selected yet.</div>
+          <div class="upload-list-header" style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;">
+            <div class="item-label" style="font-size:12px;color:var(--text-soft);letter-spacing:.04em;text-transform:uppercase;font-weight:800;">Available files</div>
+            <button class="mini-btn" type="button" onclick="loadStoredPresentations()" style="padding:8px 10px;">Refresh</button>
+          </div>
+          <div id="uploadedFileList" class="upload-list page-upload-list" style="margin-top:10px;"></div>
+          <div class="upload-note">
+            PDF files will open in the presentation viewer. PPTX files will be read by a simple built-in text slide reader. Legacy .ppt files can be uploaded but need a backend converter for true slide preview.
+          </div>
+        </div>
+      </div>
+      <div class="split-pane screen-share-pane">
+        <div class="choice-box screen-share-choice">
+          <div class="choice-icon">🖥️</div>
+          <div class="choice-title">Share Screen</div>
+          <div class="choice-desc">Choose a countdown, then transition into real browser screen sharing.</div>
+          <div class="mobile-share-note">Mobile browsers normally do not support real screen sharing. Please use a desktop Chrome / Edge browser for this feature.</div>
+          <div class="field">
+            <label for="countdownSelect">Countdown</label>
+            <select id="countdownSelect">
+              <option value="5">5 seconds</option>
+              <option value="10">10 seconds</option>
+              <option value="20">20 seconds</option>
+              <option value="30">30 seconds</option>
+              <option value="60">60 seconds</option>
+            </select>
+          </div>
+          <div class="link-row">
+            <button class="primary-btn" onclick="startPrepareCountdown()">Start Screen Sharing</button>
+          </div>
+          <div id="shareError" class="error-message">Input error: screen sharing permission was not granted.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="demoPage" class="page">
+    <div class="demo-shell">
+      <button class="top-exit" onclick="exitFlow()">End Presentation</button>
+
+      <div class="tutorial-mask" id="tutorialMask" onclick="closeTutorial()">
+        <div class="tutorial-card">
+          <div class="tutorial-title">Quick Guide</div>
+          <div class="tutorial-board">
+            <div class="tutorial-exit">Exit</div>
+            <div class="tutorial-left">
+              <div class="tutorial-big">Previous</div>
+              <div class="tutorial-small">Use the left button, Left Arrow, or swipe left/right on mobile.</div>
+            </div>
+            <div class="tutorial-right">
+              <div class="tutorial-big">Next</div>
+              <div class="tutorial-small">Use the right button, Right Arrow, or swipe left/right on mobile.</div>
+            </div>
+          </div>
+          <div class="tutorial-tip">Keyboard: ←/→ page, ↑/↓ file, +/- zoom. Mouse wheel zooms, drag pans. Mobile: swipe left/right for page. Drag/pinch to move and zoom.</div>
+        </div>
+      </div>
+
+      <div class="presentation-controls" id="presentationControls">
+        <button class="nav-btn nav-left" onclick="prevDemoPage()" aria-label="Previous page">‹</button>
+        <button class="nav-btn nav-right" onclick="nextDemoPage()" aria-label="Next page">›</button>
+        <button class="nav-btn nav-up" onclick="switchPresentationFile(-1)" aria-label="Previous uploaded file">↑ File</button>
+        <button class="nav-btn nav-down" onclick="switchPresentationFile(1)" aria-label="Next uploaded file">↓ File</button>
+        <div class="mobile-file-button-row" aria-label="Mobile file switch controls">
+          <button class="mobile-file-switch-btn" onclick="switchPresentationFile(-1)" aria-label="Previous uploaded file">↑ Prev File</button>
+          <button class="mobile-file-switch-btn" onclick="switchPresentationFile(1)" aria-label="Next uploaded file">↓ Next File</button>
+        </div>
+        <div class="zoom-controls">
+          <button class="zoom-btn zoom-out" onclick="zoomOutPresentation()" aria-label="Zoom out">−</button>
+          <button class="zoom-btn zoom-reset" onclick="resetPresentationZoom()" aria-label="Reset zoom">100%</button>
+          <button class="zoom-btn zoom-in" onclick="zoomInPresentation()" aria-label="Zoom in">+</button>
+        </div>
+      </div>
+
+      <div class="page-stage">
+        <div class="slide-card" id="slideCard">
+          <div id="presentationCanvas" class="presentation-viewer">
+            <div class="slide-big" id="slideText">PAGE 1</div>
+            <div class="slide-sub">Clean, high-contrast branded navigation.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="confirmPage" class="page">
+    <div class="confirm-shell">
+      <button class="top-exit" onclick="exitFlow()">Exit</button>
+
+      <div class="tap-layer">
+        <div class="tap-zone" onclick="backFromConfirm()"></div>
+        <div class="tap-zone" onclick="exitFlow()"></div>
+      </div>
+
+      <div class="confirm-stage">
+        <div class="confirm-card">
+          <div class="confirm-side">
+            <div>
+              <h2>Not finish yet</h2>
+              <p>Tap the left half to jump back to the last slide.</p>
+            </div>
+          </div>
+          <div class="confirm-side">
+            <div>
+              <h2>Exit</h2>
+              <p>Tap the right half to wrap things up.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="countdownPage" class="page">
+    <div class="countdown-shell">
+      <button class="top-exit" onclick="exitFlow()">Exit</button>
+      <div>
+        <div class="subtitle" style="font-size:18px; color:#93c5fd;">Getting ready</div>
+        <h1 class="count-big" id="countNum">5</h1>
+        <div class="count-label">Screen sharing starts as soon as the countdown ends.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="sharePage" class="page">
+    <div class="share-shell">
+      <button class="top-exit" onclick="exitFlow()">Exit</button>
+      <div class="screen-share-wrap">
+        <video id="screenShareVideo" class="screen-share-video" autoplay playsinline muted></video>
+        <div class="screen-share-status">Screen sharing is active. Use Exit to stop sharing and return to the upload / sharing page.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="remoteScreenShareOverlay" class="screen-share-overlay hidden" style="position:fixed;inset:0;z-index:999990;background:#000;display:none;align-items:center;justify-content:center;">
+    <video id="remoteScreenShareVideo" style="width:100%;height:100%;object-fit:contain;background:#000;" autoplay playsinline></video>
+    <div style="position:absolute;left:20px;bottom:18px;color:#fff;background:rgba(0,0,0,.45);padding:8px 12px;border-radius:999px;font-size:13px;" id="remoteScreenShareStatus">Waiting for screen share...</div>
+  </section>
+
+  <section id="goodbyePage" class="page">
+    <div class="goodbye-shell">
+      <div>
+        <div style="font-size:80px;">✓</div>
+        <div class="goodbye-text">Presentation ended successfully</div>
+      </div>
+    </div>
+  </section>
+
+  <div id="uploadModal" class="modal-mask">
+    <div class="modal">
+      <h3>Upload presentation file</h3>
+      <p>Choose a PDF or PowerPoint file first. Uploaded files will appear below. Presentation will only start after you select a file and click Start Presentation.</p>
+      <input id="modalPresentationFileInput" type="file" accept=".pdf,.ppt,.pptx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple class="hidden" onchange="handlePresentationFiles(event)" />
+      <div class="upload-picker-row">
+        <button class="primary-btn" onclick="triggerPresentationFilePicker()">Choose PDF / PowerPoint</button>
+        <div id="modalSelectedFileLabel" class="selected-label">No file selected yet.</div>
+      </div>
+      <div id="modalUploadError" class="error-message">Input error: please upload a PDF or PowerPoint file.</div>
+      <div id="modalUploadedFileList" class="upload-list"></div>
+      <div class="modal-actions">
+        <button class="secondary-btn" onclick="closeUploadModal()">Cancel</button>
+        <button class="primary-btn" onclick="startSelectedPresentation()">Start Presentation</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sessionErrorScreen" class="session-error-screen"><div class="session-error-card"><h2>Connection error</h2><p id="sessionErrorText">Another device is already connected.</p></div></div>
+  <div id="fullscreenHint" class="fullscreen-hint"><div class="fullscreen-hint-card"><h2>Click to enter presentation mode</h2><p>Browsers do not allow true fullscreen unless the display computer receives a direct click or key press. Click here, or press F11 on the display computer.</p></div></div>
+
+  <div id="toast" class="toast">Done</div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const pages = {
+      code: document.getElementById('codePage'),
+      choice: document.getElementById('choicePage'),
+      demo: document.getElementById('demoPage'),
+      confirm: document.getElementById('confirmPage'),
+      countdown: document.getElementById('countdownPage'),
+      share: document.getElementById('sharePage'),
+      goodbye: document.getElementById('goodbyePage')
+    };
+
+    const VALID_MEETING_CODES = ['12345678', '1234 5678', 'CBRIN'];
+    window.addEventListener('DOMContentLoaded', function(){
+      var room = new URLSearchParams(location.search).get('room');
+      var input = document.getElementById('joinCode');
+      if (room && input && !input.value) input.value = room === '12345678' ? '12345678' : room;
+    });
+    const BACKEND_UPLOAD_ENDPOINT = '/api/presentation-files';
+    const BACKEND_FILES_LIST_ENDPOINT = '/api/presentation-files';
+    const BACKEND_COMMAND_ENDPOINT = '/api/presentation-command';
+    const BACKEND_EVENTS_ENDPOINT = '/api/presentation-events';
+    const BACKEND_PRESENCE_ENDPOINT = '/api/presentation-presence';
+    const params = new URLSearchParams(location.search);
+    const ROOM_ID = (params.get('room') || '12345678').replace(/\s/g, '') || '12345678';
+    const PRESENTATION_ROLE = (location.pathname === '/display' || params.get('role') === 'display') ? 'display' : 'controller';
+    const DISPLAY_WAITING_MODE = PRESENTATION_ROLE === 'display' && params.get('waiting') === '1';
+    const IS_EMBEDDED_DISPLAY = PRESENTATION_ROLE === 'display' && (() => {
+      try { return window.self !== window.top; } catch (_e) { return true; }
+    })();
+    const CLIENT_STORAGE_KEY = 'cbrin-client-id-' + PRESENTATION_ROLE + '-' + ROOM_ID;
+    const DISCONNECTED_STORAGE_KEY = 'cbrin-disconnected-' + PRESENTATION_ROLE + '-' + ROOM_ID;
+    const CLIENT_ID = (() => {
+      try {
+        const existing = sessionStorage.getItem(CLIENT_STORAGE_KEY);
+        if (existing) return existing;
+        const id = crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(16).slice(2));
+        sessionStorage.setItem(CLIENT_STORAGE_KEY, id);
+        return id;
+      } catch(e) {
+        return Date.now() + '-' + Math.random().toString(16).slice(2);
+      }
+    })();
+    const IS_TOUCH_TABLET = (navigator.maxTouchPoints || 0) > 1 && /Macintosh/i.test(navigator.userAgent);
+    const IS_MOBILE_VIEW = PRESENTATION_ROLE === 'controller' && (window.matchMedia('(max-width: 1180px)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || IS_TOUCH_TABLET);
+    const BACKEND_CONVERT_ENDPOINT = '/api/convert-presentation';
+    const SCREEN_SHARE_API_BASE = window.SCREEN_SHARE_API_BASE || window.location.origin;
+    // Prefer explicit screen_room; otherwise use the presentation room so Share Screen works without Admin setup.
+    let SCREEN_SHARE_ROOM_ID = (params.get('screen_room') || params.get('screenRoom') || ROOM_ID || '').replace(/\s/g, '');
+    const SCREEN_SHARE_RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    let screenShareSocket = null;
+    let screenSharePeerConnection = null;
+    let pendingScreenShareIceCandidates = [];
+    let screenShareActive = false;
+    let demoIndex = 1;
+    let countdownTimer = null;
+    let uploadedPresentations = [];
+    let selectedPresentationId = null;
+    let currentPresentation = null;
+    let activeScreenStream = null;
+    let pdfPage = 1;
+    let pptxPage = 1;
+    let pdfDoc = null;
+    let pdfRenderTask = null;
+    let pdfJsLoadingPromise = null;
+    let presentationZoom = 1;
+    let presentationPanX = 0;
+    let presentationPanY = 0;
+    let isViewerDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let dragStartPanX = 0;
+    let dragStartPanY = 0;
+    let dragStartScrollLeft = 0;
+    let dragStartScrollTop = 0;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let localCommandSeq = 0;
+    let lastRemoteStartSeq = 0;
+    let lastRemoteSyncSeq = 0;
+    let lastSwitchToken = 0;
+    let applyingRemoteCommand = false;
+    let pinchStartDistance = 0;
+    let pinchStartZoom = 1;
+    let touchWasPinching = false;
+    let touchIsPanning = false;
+    let touchStartPanX = 0;
+    let touchStartPanY = 0;
+    let touchStartEdge = null;
+    let presenceTimer = null;
+    let sessionReady = false;
+    document.body.classList.add(PRESENTATION_ROLE + '-role');
+    if (IS_EMBEDDED_DISPLAY) document.body.classList.add('embedded-display');
+    if (IS_MOBILE_VIEW) document.body.classList.add('controller-mobile');
+
+
+    function showSessionError(text) {
+      const screen = document.getElementById('sessionErrorScreen');
+      const message = document.getElementById('sessionErrorText');
+      const title = screen ? screen.querySelector('h2') : null;
+      if (title) title.textContent = 'Connection error';
+      if (message) message.textContent = text || 'Another device is already connected to this room.';
+      if (screen) screen.classList.add('show');
+      const btn = document.getElementById('sessionActionBtn');
+      if (btn) btn.remove();
+      try { if (presenceTimer) clearInterval(presenceTimer); } catch(e) {}
+    }
+
+    function ensureSessionActionButton(label, handler) {
+      const card = document.querySelector('#sessionErrorScreen .session-error-card');
+      if (!card) return null;
+      let btn = document.getElementById('sessionActionBtn');
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'sessionActionBtn';
+        btn.type = 'button';
+        btn.style.cssText = 'margin-top:18px;border:none;border-radius:14px;padding:12px 16px;background:linear-gradient(135deg,#a82e9b,#d24896);color:#fff;font-weight:900;cursor:pointer;';
+        card.appendChild(btn);
+      }
+      btn.textContent = label;
+      btn.onclick = handler;
+      return btn;
+    }
+
+    function hideSessionOverlay() {
+      const screen = document.getElementById('sessionErrorScreen');
+      if (screen) screen.classList.remove('show');
+    }
+
+    function showSessionInfo(text) {
+      const screen = document.getElementById('sessionErrorScreen');
+      const message = document.getElementById('sessionErrorText');
+      const title = screen ? screen.querySelector('h2') : null;
+      if (title) title.textContent = 'Disconnected';
+      if (message) message.textContent = text || 'This controller has disconnected. Another device can now join this room.';
+      if (screen) screen.classList.add('show');
+      try { if (presenceTimer) clearInterval(presenceTimer); } catch(e) {}
+      if (PRESENTATION_ROLE === 'controller') {
+        ensureSessionActionButton('Reconnect this device', async () => {
+          try { sessionStorage.removeItem(DISCONNECTED_STORAGE_KEY); } catch(e) {}
+          hideSessionOverlay();
+          await startPresenceGuard();
+          showPage('choice');
+          loadStoredPresentations();
+        });
+      }
+    }
+
+    async function sendPresence(action = 'join') {
+      const res = await fetch(BACKEND_PRESENCE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room: ROOM_ID,
+          role: PRESENTATION_ROLE,
+          clientId: CLIENT_ID,
+          action,
+          userAgent: navigator.userAgent
+        })
+      });
+      let data = {};
+      try { data = await res.json(); } catch(e) {}
+      if (!res.ok || data.ok === false) throw new Error(data.error || 'This room already has an active device connected.');
+      return data;
+    }
+
+    async function startPresenceGuard() {
+      if (sessionReady) return true;
+      try {
+        await sendPresence('join');
+        try { sessionStorage.removeItem(DISCONNECTED_STORAGE_KEY); } catch(e) {}
+        sessionReady = true;
+        updateControllerDisconnectVisibility();
+        if (presenceTimer) clearInterval(presenceTimer);
+        presenceTimer = setInterval(() => {
+          if (!sessionReady) return;
+          sendPresence('heartbeat').catch((err) => {
+            // Don't trap the user on Exit / leave races; only show hard errors while still in-session.
+            if (sessionReady) showSessionError(err.message);
+          });
+        }, 5000);
+        window.addEventListener('beforeunload', () => {
+          try {
+            const payload = JSON.stringify({ room: ROOM_ID, role: PRESENTATION_ROLE, clientId: CLIENT_ID, action: 'leave' });
+            navigator.sendBeacon && navigator.sendBeacon(BACKEND_PRESENCE_ENDPOINT, new Blob([payload], { type:'application/json' }));
+          } catch(e) {}
+        }, { once:true });
+        return true;
+      } catch (err) {
+        // Embedded admin preview should still mirror slides even if the exclusive display slot is taken.
+        if (DISPLAY_WAITING_MODE || IS_EMBEDDED_DISPLAY) {
+          console.warn('Display presence unavailable; continuing as mirror:', err.message);
+          hideSessionOverlay();
+          return false;
+        }
+        showSessionError(err.message);
+        return false;
+      }
+    }
+
+    function showFullscreenHint() {
+      if (PRESENTATION_ROLE !== 'display' || IS_EMBEDDED_DISPLAY) return;
+      const hint = document.getElementById('fullscreenHint');
+      if (!hint || document.fullscreenElement) return;
+      hint.classList.add('show');
+      const enter = () => requestPresentationFullscreen(true);
+      hint.addEventListener('click', enter, { once:true });
+    }
+
+
+    function releasePresenceSlot() {
+      if (presenceTimer) { clearInterval(presenceTimer); presenceTimer = null; }
+      if (!sessionReady) return Promise.resolve();
+      sessionReady = false;
+      updateControllerDisconnectVisibility();
+      return sendPresence('leave').catch(() => {});
+    }
+
+    async function disconnectControllerSession() {
+      try { sessionStorage.setItem(DISCONNECTED_STORAGE_KEY, '1'); } catch(e) {}
+      try {
+        await sendPresentationCommand('exit');
+      } catch(e) {}
+      await releasePresenceSlot();
+      stopActiveScreenShare();
+      currentPresentation = null;
+      pdfDoc = null;
+      try { if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen(); } catch(e) {}
+      showSessionInfo('Disconnected from this room. Another controller can now join.');
+    }
+
+    function ensureControllerDisconnectButton() {
+      if (PRESENTATION_ROLE !== 'controller') return;
+      if (document.getElementById('controllerDisconnectBtn')) return;
+      const btn = document.createElement('button');
+      btn.id = 'controllerDisconnectBtn';
+      btn.type = 'button';
+      btn.textContent = 'Disconnect';
+      btn.setAttribute('aria-label', 'Disconnect controller');
+      btn.style.cssText = 'position:fixed;right:14px;top:14px;z-index:1000002;border:none;border-radius:14px;padding:10px 14px;background:linear-gradient(135deg,#d94b67,#c73654);color:#fff;font-weight:900;box-shadow:0 10px 26px rgba(0,0,0,.28);display:none;';
+      btn.addEventListener('click', disconnectControllerSession);
+      btn.addEventListener('touchend', function(event){ event.preventDefault(); disconnectControllerSession(); }, { passive:false });
+      document.body.appendChild(btn);
+      updateControllerDisconnectVisibility();
+    }
+
+    function updateControllerDisconnectVisibility(activeKey) {
+      if (PRESENTATION_ROLE !== 'controller') return;
+      const btn = document.getElementById('controllerDisconnectBtn');
+      if (!btn) return;
+      const key = activeKey || (pages.choice && pages.choice.classList.contains('active') ? 'choice' : (pages.demo && pages.demo.classList.contains('active') ? 'demo' : ''));
+      // Choice page: Disconnect from room. Demo page uses the End Presentation button instead.
+      const show = key === 'choice' && sessionReady;
+      btn.classList.toggle('show', show);
+      btn.style.display = show ? 'block' : 'none';
+    }
+    function showPage(key) {
+      Object.values(pages).forEach(p => {
+        if (!p) return;
+        p.classList.remove('active');
+        // Important: earlier mobile-login code used inline display:block/none.
+        // Clear it here, otherwise the choice page can stay visible above the presentation page.
+        p.style.display = '';
+      });
+      document.body.classList.toggle('choice-scroll-mode', key === 'choice');
+      document.documentElement.classList.toggle('choice-scroll-mode', key === 'choice');
+      if (key === 'choice') {
+        document.body.style.overflow = 'auto';
+        document.documentElement.style.overflow = 'auto';
+        window.scrollTo(0, 0);
+      } else {
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+      }
+      if (pages[key]) pages[key].classList.add('active');
+      updateControllerDisconnectVisibility(key);
+      if (key === 'choice') unlockChoiceScroll();
+    }
+    window.showPage = showPage;
+
+    function unlockChoiceScroll() {
+      if (!IS_MOBILE_VIEW) return;
+      document.body.classList.add('controller-mobile', 'choice-scroll-mode');
+      document.documentElement.classList.add('choice-scroll-mode');
+      document.body.style.overflowY = 'scroll';
+      document.body.style.height = 'auto';
+      document.documentElement.style.overflowY = 'scroll';
+      const choice = document.getElementById('choicePage');
+      if (choice) {
+        choice.style.overflow = 'visible';
+        choice.style.height = 'auto';
+        choice.style.minHeight = '100dvh';
+      }
+    }
+
+    function showError(id, text) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (text) el.textContent = text;
+      el.classList.add('show');
+    }
+
+    function hideError(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('show');
+    }
+
+    function showToast(text) {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      toast.textContent = text;
+      toast.style.display = 'block';
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.style.display = 'none', 2200);
+    }
+
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+    }
+
+    async function uploadPresentationToBackend(item) {
+      if (!item || item.serverUrl || !item.file) return item;
+      const formData = new FormData();
+      formData.append('file', item.file, item.name);
+      const res = await fetch(BACKEND_UPLOAD_ENDPOINT, { method: 'POST', body: formData });
+      if (!res.ok) throw new Error(await res.text());
+      const saved = await res.json();
+      item.serverUrl = saved.url;
+      item.remoteUrl = saved.url;
+      item.remoteId = saved.id;
+      return item;
+    }
+
+    async function sendPresentationCommand(command, data = {}) {
+      const seq = data.seq || (++localCommandSeq + Date.now() * 1000);
+      try {
+        await fetch(BACKEND_COMMAND_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room: ROOM_ID, command, seq, sender: PRESENTATION_ROLE, clientId: CLIENT_ID, ...data })
+        });
+      } catch (err) {
+        console.warn('Remote command failed:', err);
+      }
+      return seq;
+    }
+
+    function getCurrentPresentationPage() {
+      if (!currentPresentation) return 1;
+      return currentPresentation.type === 'pdf' ? pdfPage : pptxPage;
+    }
+
+    function setCurrentPresentationPage(page) {
+      if (!currentPresentation) return;
+      const next = Math.max(1, Number(page) || 1);
+      if (currentPresentation.type === 'pdf') {
+        const max = pdfDoc ? pdfDoc.numPages : next;
+        pdfPage = Math.min(max, next);
+        if (pdfDoc) renderPdfPage(); else renderPresentationCanvas(currentPresentation);
+      } else if (currentPresentation.type === 'pptx') {
+        const max = currentPresentation.slides && currentPresentation.slides.length ? currentPresentation.slides.length : 1;
+        pptxPage = Math.min(max, next);
+        renderPresentationCanvas(currentPresentation);
+      }
+    }
+
+    function getCurrentPresentationId() {
+      return currentPresentation ? (currentPresentation.remoteId || currentPresentation.id) : null;
+    }
+
+    function getPanRatios() {
+      const b = getPanBounds();
+      const ratioX = b.maxX > 0 ? Math.max(-1, Math.min(1, presentationPanX / b.maxX)) : 0;
+      const ratioY = b.maxY > 0 ? Math.max(-1, Math.min(1, presentationPanY / b.maxY)) : 0;
+      return {
+        ratioX,
+        ratioY,
+        unitX: window.innerWidth ? presentationPanX / window.innerWidth : 0,
+        unitY: window.innerHeight ? presentationPanY / window.innerHeight : 0
+      };
+    }
+
+    function applyPanRatios(ratioX, ratioY) {
+      const b = getPanBounds();
+      if (b.maxX > 0 && Number.isFinite(Number(ratioX))) presentationPanX = Math.max(b.minX, Math.min(b.maxX, Number(ratioX) * b.maxX));
+      if (b.maxY > 0 && Number.isFinite(Number(ratioY))) presentationPanY = Math.max(b.minY, Math.min(b.maxY, Number(ratioY) * b.maxY));
+    }
+
+    function broadcastViewState() {
+      if (!currentPresentation || applyingRemoteCommand) return;
+      const pan = getPanRatios();
+      sendPresentationCommand('sync', {
+        page: getCurrentPresentationPage(),
+        zoom: presentationZoom,
+        panX: presentationPanX,
+        panY: presentationPanY,
+        panRatioX: pan.ratioX,
+        panRatioY: pan.ratioY,
+        panUnitX: pan.unitX,
+        panUnitY: pan.unitY,
+        viewportW: window.innerWidth,
+        viewportH: window.innerHeight,
+        orientation: window.innerHeight >= window.innerWidth ? 'portrait' : 'landscape',
+        presentationId: getCurrentPresentationId()
+      });
+    }
+
+    async function applyRemoteViewState(msg) {
+      if (!currentPresentation) return;
+      if (msg.presentationId && getCurrentPresentationId() && msg.presentationId !== getCurrentPresentationId()) return;
+      applyingRemoteCommand = true;
+      try {
+        if (msg.page) {
+          if (currentPresentation.type === 'pdf') pdfPage = Math.max(1, Number(msg.page) || 1);
+          else if (currentPresentation.type === 'pptx') pptxPage = Math.max(1, Number(msg.page) || 1);
+        }
+        if (msg.zoom) presentationZoom = normalizeRemoteZoomForThisDevice(msg.zoom, msg.sender);
+        // Re-map pan by relative edge position / viewport units instead of raw pixels.
+        if (Number.isFinite(Number(msg.panUnitX)) || Number.isFinite(Number(msg.panUnitY))) {
+          if (Number.isFinite(Number(msg.panUnitX))) presentationPanX = Number(msg.panUnitX) * window.innerWidth;
+          if (Number.isFinite(Number(msg.panUnitY))) presentationPanY = Number(msg.panUnitY) * window.innerHeight;
+          clampPanToBounds();
+        } else if (Number.isFinite(Number(msg.panRatioX)) || Number.isFinite(Number(msg.panRatioY))) {
+          if (currentPresentation.type === 'pdf' && pdfDoc) await renderPdfPage();
+          else renderPresentationCanvas(currentPresentation);
+          applyPanRatios(msg.panRatioX, msg.panRatioY);
+        } else {
+          if (Number.isFinite(Number(msg.panX))) presentationPanX = normalizeRemotePanForThisDevice(msg.panX, msg.sender);
+          if (Number.isFinite(Number(msg.panY))) presentationPanY = normalizeRemotePanForThisDevice(msg.panY, msg.sender);
+        }
+        if (currentPresentation.type === 'pdf' && pdfDoc) await renderPdfPage();
+        else renderPresentationCanvas(currentPresentation);
+      } finally {
+        applyingRemoteCommand = false;
+      }
+    }
+
+    function resetPresentationViewerState() {
+      stopActiveScreenShare();
+      clearInterval(countdownTimer);
+      currentPresentation = null;
+      pdfDoc = null;
+      pdfPage = 1;
+      pptxPage = 1;
+      presentationZoom = 1;
+      presentationPanX = 0;
+      presentationPanY = 0;
+      const shell = document.querySelector('#demoPage .demo-shell');
+      if (shell) shell.classList.remove('presentation-active');
+      try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch(e) {}
+    }
+
+    async function returnDisplayToWaiting() {
+      hideSessionOverlay();
+      resetPresentationViewerState();
+      await releasePresenceSlot();
+      showWaitingForController();
+    }
+
+    function closeDisplayWindowOrReturnAdmin() {
+      // Keep the display on the waiting page so Exit does not fight a new popup for the same room slot.
+      returnDisplayToWaiting();
+    }
+
+    async function convertPresentationOnBackend(selected) {
+      if (!selected || (selected.type !== 'ppt' && selected.type !== 'pptx')) return selected;
+      if (selected.convertedUrl) return selected;
+      const formData = new FormData();
+      if (selected.remoteId) {
+        // fileId path
+      }
+      const body = selected.serverUrl || selected.remoteUrl
+        ? JSON.stringify({ fileId: selected.remoteId || null, url: selected.serverUrl || selected.remoteUrl })
+        : null;
+      let res;
+      if (selected.file && !selected.serverUrl) {
+        const fd = new FormData();
+        fd.append('file', selected.file, selected.name);
+        res = await fetch(BACKEND_CONVERT_ENDPOINT, { method: 'POST', body: fd });
+      } else {
+        res = await fetch(BACKEND_CONVERT_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileId: selected.remoteId || undefined, url: selected.serverUrl || selected.remoteUrl })
+        });
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Conversion failed');
+      }
+      const converted = await res.json();
+      selected.convertedUrl = converted.url;
+      selected.convertedId = converted.id;
+      selected.originalType = selected.type;
+      selected.type = 'pdf';
+      selected.url = converted.url;
+      selected.serverUrl = converted.url;
+      selected.remoteUrl = converted.url;
+      selected.remoteId = converted.id;
+      selected.parseStatus = 'ready';
+      return selected;
+    }
+
+    async function buildRemotePayload(selected) {
+      if (!selected.serverUrl && selected.file) await uploadPresentationToBackend(selected);
+      if ((selected.type === 'ppt' || selected.type === 'pptx') && !selected.convertedUrl) {
+        try {
+          showToast('Converting PowerPoint to PDF...');
+          await convertPresentationOnBackend(selected);
+        } catch (err) {
+          console.warn('Conversion unavailable, falling back to simple viewer:', err);
+        }
+      }
+      return {
+        id: selected.remoteId || selected.id,
+        name: selected.name,
+        type: selected.type,
+        size: selected.size,
+        url: selected.serverUrl || selected.url,
+        slides: selected.slides || null,
+        parseStatus: selected.parseStatus || 'ready'
+      };
+    }
+
+    function requestPresentationFullscreen(fromUser = false) {
+      if (IS_EMBEDDED_DISPLAY) return Promise.resolve();
+      const target = document.documentElement;
+      const hint = document.getElementById('fullscreenHint');
+      if (document.fullscreenElement) { if (hint) hint.classList.remove('show'); return Promise.resolve(); }
+      if (!target.requestFullscreen) { showFullscreenHint(); return Promise.resolve(); }
+      return target.requestFullscreen({ navigationUI: 'hide' }).then(() => {
+        if (hint) hint.classList.remove('show');
+      }).catch(() => {
+        if (PRESENTATION_ROLE === 'display' && !fromUser) showFullscreenHint();
+      });
+    }
+
+    function connectPresentationEvents() {
+      if (!window.EventSource) return;
+      const source = new EventSource(BACKEND_EVENTS_ENDPOINT + '?room=' + encodeURIComponent(ROOM_ID));
+      source.onmessage = async (event) => {
+        let msg;
+        try { msg = JSON.parse(event.data || '{}'); } catch (e) { return; }
+        if (!msg || !msg.command) return;
+        if (msg.command === 'presence' && PRESENTATION_ROLE === 'controller' && msg.role === 'display' && msg.status === 'joined' && currentPresentation) {
+          buildRemotePayload(currentPresentation).then(remotePayload => {
+            sendPresentationCommand('start', { presentation: remotePayload }).then(seq => {
+              lastRemoteStartSeq = seq;
+              setTimeout(broadcastViewState, 180);
+            });
+          }).catch(err => console.warn('Could not resync display:', err));
+        }
+        if (msg.command === 'start' && msg.presentation) {
+          if (msg.clientId && msg.clientId === CLIENT_ID) return;
+          const seq = Number(msg.seq || msg.at || 0);
+          const incomingId = msg.presentation.id || msg.presentation.remoteId || msg.presentationId || null;
+          if (seq && seq <= lastRemoteStartSeq) return;
+          if (currentPresentation && incomingId && getCurrentPresentationId() === incomingId && pages.demo && pages.demo.classList.contains('active')) {
+            if (seq) lastRemoteStartSeq = Math.max(lastRemoteStartSeq, seq);
+            return;
+          }
+          if (PRESENTATION_ROLE === 'display') {
+            hideSessionOverlay();
+            // After Exit we release the display slot; reclaim it when a new presentation starts.
+            // For the admin iframe (waiting mode), still show content even if presence is contested.
+            if (!sessionReady) {
+              const ok = await startPresenceGuard();
+              if (!ok && !DISPLAY_WAITING_MODE && !IS_EMBEDDED_DISPLAY) return;
+            }
+          }
+          lastRemoteStartSeq = seq || Date.now();
+          const remote = { ...msg.presentation, file: null, url: msg.presentation.url || msg.presentation.remoteUrl || msg.presentation.serverUrl };
+          await beginPresentationFile(remote, true);
+          return;
+        }
+        if (msg.command === 'switch-file-request' && PRESENTATION_ROLE === 'controller' && currentPresentation) {
+          if (msg.clientId && msg.clientId === CLIENT_ID) return;
+          let dir;
+          if (msg.action === 'prev') dir = -1;
+          else if (msg.action === 'next') dir = 1;
+          else dir = Number(msg.direction) < 0 ? -1 : 1;
+          await switchPresentationFile(dir);
+          return;
+        }
+        if (msg.command === 'sync' && currentPresentation) {
+          if (msg.clientId && msg.clientId === CLIENT_ID) return;
+          const syncSeq = Number(msg.seq || msg.at || 0);
+          if (syncSeq && syncSeq <= lastRemoteSyncSeq) return;
+          if (syncSeq) lastRemoteSyncSeq = syncSeq;
+          applyRemoteViewState(msg);
+        }
+        if (msg.command === 'screen-share-start') {
+          if (PRESENTATION_ROLE === 'display') {
+            hideSessionOverlay();
+            if (!sessionReady) {
+              const ok = await startPresenceGuard();
+              if (!ok && !DISPLAY_WAITING_MODE && !IS_EMBEDDED_DISPLAY) return;
+            }
+            joinDisplayScreenShareRoom(msg.screenRoom || msg.room || ROOM_ID);
+          }
+          return;
+        }
+        if (msg.command === 'screen-share-stop') {
+          if (PRESENTATION_ROLE === 'display') stopDisplayScreenShareReceiver('presenter stopped');
+          return;
+        }
+        if (msg.command === 'exit') {
+          if (PRESENTATION_ROLE === 'display') {
+            stopDisplayScreenShareReceiver('exit');
+            returnDisplayToWaiting();
+          } else if (currentPresentation || screenShareActive) {
+            exitFlow(false);
+          }
+        }
+      };
+      source.onerror = () => console.warn('Presentation event connection lost or reconnecting...');
+    }
+
+    function showWaitingForController() {
+      const shell = document.querySelector('#demoPage .demo-shell');
+      if (shell) shell.classList.remove('presentation-active');
+      const tutorial = document.getElementById('tutorialMask');
+      if (tutorial) tutorial.classList.add('hidden');
+      setSlideCardFullscreen(false);
+      const canvas = document.getElementById('presentationCanvas');
+      if (canvas) {
+        canvas.innerHTML = '<div class="slide-big" style="font-size:46px">Waiting for presenter</div><div class="slide-sub">Room ' + escapeHtml(ROOM_ID) + ' is connected. Start a presentation from the phone/controller.</div>';
+      }
+      showPage('demo');
+    }
+
+    async function validateJoinCode() {
+      const input = document.getElementById('joinCode');
+      const value = (input.value || '').trim();
+      if (!VALID_MEETING_CODES.includes(value)) {
+        showError('codeError', 'Input error: meeting code is incorrect. Please check the code and try again.');
+        showToast('Wrong meeting code');
+        return;
+      }
+      hideError('codeError');
+      await loadStoredPresentations();
+      if (PRESENTATION_ROLE === 'display') showWaitingForController();
+      else showPage('choice');
+    }
+
+    function mapStoredPresentationFile(file) {
+      const type = String(file.type || '').toLowerCase();
+      return {
+        id: file.id,
+        name: file.name,
+        type,
+        size: file.size || 0,
+        url: file.url,
+        serverUrl: file.url,
+        remoteUrl: file.url,
+        remoteId: file.id,
+        file: null,
+        slides: null,
+        parseStatus: type === 'pdf' ? 'ready' : (type === 'pptx' ? 'pending' : 'ready'),
+        fromLibrary: true,
+        uploadedAt: file.uploadedAt || null,
+        status: file.status || 'uploaded'
+      };
+    }
+
+    function presentationFileKey(item) {
+      return String(item.remoteId || item.id || '') + '|' + String(item.serverUrl || item.remoteUrl || item.url || '');
+    }
+
+    async function loadStoredPresentations() {
+      const list = document.getElementById('uploadedFileList');
+      if (list && !uploadedPresentations.length) {
+        list.innerHTML = '<div class="selected-label">Loading stored files...</div>';
+      }
+      try {
+        const res = await fetch(BACKEND_FILES_LIST_ENDPOINT, { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Failed to load stored files');
+        const files = Array.isArray(data.files) ? data.files : [];
+        const sessionOnly = uploadedPresentations.filter((item) => !item.fromLibrary);
+        const seen = new Set(sessionOnly.map(presentationFileKey));
+        const libraryItems = [];
+        for (const file of files) {
+          const mapped = mapStoredPresentationFile(file);
+          const key = presentationFileKey(mapped);
+          if (seen.has(key)) continue;
+          // Also skip if session upload already shares the same remote id or url.
+          const dup = sessionOnly.some((item) =>
+            (item.remoteId && item.remoteId === mapped.remoteId) ||
+            ((item.serverUrl || item.url) && (item.serverUrl || item.url) === mapped.url)
+          );
+          if (dup) continue;
+          seen.add(key);
+          libraryItems.push(mapped);
+        }
+        uploadedPresentations = sessionOnly.concat(libraryItems);
+        if (!selectedPresentationId && uploadedPresentations.length) {
+          selectedPresentationId = uploadedPresentations[0].id;
+        } else if (selectedPresentationId && !uploadedPresentations.some((item) => item.id === selectedPresentationId)) {
+          selectedPresentationId = uploadedPresentations[0] ? uploadedPresentations[0].id : null;
+        }
+        renderUploadedFiles();
+      } catch (err) {
+        console.warn('Could not load stored presentation files:', err);
+        renderUploadedFiles();
+        if (!uploadedPresentations.length && list) {
+          list.innerHTML = '<div class="selected-label">Could not load stored files. You can still upload a new file.</div>';
+        }
+      }
+    }
+
+    function triggerPresentationFilePicker() {
+      hideError('uploadError');
+      let input = document.getElementById('presentationFileInput');
+      if (!input) {
+        input = document.createElement('input');
+        input.id = 'presentationFileInput';
+        input.type = 'file';
+        input.accept = '.pdf,.ppt,.pptx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation';
+        input.multiple = true;
+        input.className = 'hidden';
+        input.addEventListener('change', handlePresentationFiles);
+        document.body.appendChild(input);
+      }
+      input.click();
+    }
+
+    async function handlePresentationFiles(event) {
+      const files = Array.from(event.target.files || []);
+      event.target.value = '';
+      const allowed = ['pdf', 'ppt', 'pptx'];
+      const validFiles = files.filter(file => allowed.includes((file.name.split('.').pop() || '').toLowerCase()));
+      if (!validFiles.length) {
+        showError('uploadError', 'Input error: please upload a PDF, PPT, or PPTX file.');
+        return;
+      }
+      hideError('uploadError');
+
+      for (const file of validFiles) {
+        const type = (file.name.split('.').pop() || '').toLowerCase();
+        const item = {
+          id: Date.now() + '-' + Math.random().toString(16).slice(2),
+          name: file.name,
+          type,
+          file,
+          url: URL.createObjectURL(file),
+          size: file.size,
+          slides: null,
+          parseStatus: type === 'pptx' ? 'pending' : 'ready'
+        };
+        uploadedPresentations.push(item);
+        selectedPresentationId = item.id;
+        uploadPresentationToBackend(item).then(() => renderUploadedFiles()).catch(err => {
+          console.warn('Backend upload failed:', err);
+          showError('uploadError', 'Upload was added locally, but it could not be shared to the display computer: ' + err.message);
+        });
+        if (type === 'pptx') {
+          parsePptxSlides(item).then(() => renderUploadedFiles()).catch(() => {
+            item.parseStatus = 'failed';
+            renderUploadedFiles();
+          });
+        }
+      }
+      renderUploadedFiles();
+      showToast(validFiles.length + ' file(s) added');
+
+      // Backend hook for later database/file storage support:
+      // const formData = new FormData();
+      // validFiles.forEach(file => formData.append('files', file));
+      // await fetch(BACKEND_UPLOAD_ENDPOINT, { method: 'POST', body: formData });
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes) return '0 KB';
+      if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+
+    function updateUploadSlider() {
+      // Removed the range slider selector. Uploaded files are selected by clicking the file cards.
+    }
+
+    function selectPresentationByIndex(value) {
+      const index = Math.max(0, Math.min(uploadedPresentations.length - 1, Number(value) || 0));
+      const item = uploadedPresentations[index];
+      if (!item) return;
+      selectedPresentationId = item.id;
+      hideError('uploadError');
+      renderUploadedFiles();
+    }
+
+    function renderUploadedFiles() {
+      const list = document.getElementById('uploadedFileList');
+      const label = document.getElementById('selectedFileLabel');
+      if (!list) return;
+      if (!uploadedPresentations.length) {
+        list.innerHTML = '<div class="selected-label">No files yet. Upload a PDF / PowerPoint, or refresh after files are stored on the server.</div>';
+        if (label) label.textContent = 'No file selected yet.';
+        updateUploadSlider();
+        unlockChoiceScroll();
+        return;
+      }
+      list.innerHTML = uploadedPresentations.map(item => {
+        const selected = item.id === selectedPresentationId;
+        let status = String(item.type || '').toUpperCase();
+        if (item.fromLibrary) status += ' · stored';
+        if (item.type === 'pptx') {
+          if (item.parseStatus === 'pending' && item.file) status = 'PPTX · reading slides...';
+          else if (item.parseStatus === 'ready' && item.slides) status = 'PPTX · ' + ((item.slides || []).length || 1) + ' text slide(s)';
+          else if (item.fromLibrary) status = 'PPTX · stored · converts to PDF when started';
+          else status = 'PPTX · simple reader failed, backend converter needed';
+        }
+        if (item.type === 'ppt') status = item.fromLibrary ? 'PPT · stored · converts to PDF when started' : 'PPT · backend converter needed for preview';
+        if (item.serverUrl && !item.fromLibrary) status += ' · shared';
+        if (item.uploadedAt && item.fromLibrary) {
+          const d = new Date(String(item.uploadedAt).includes('T') ? item.uploadedAt : String(item.uploadedAt).replace(' ', 'T') + 'Z');
+          if (!Number.isNaN(d.getTime())) status += ' · ' + d.toLocaleString();
+        }
+        return `
+          <div class="file-card ${selected ? 'selected' : ''}" onclick='selectPresentation(${JSON.stringify(String(item.id))})'>
+            <div>
+              <div class="file-name">${escapeHtml(item.name)}</div>
+              <div class="file-meta">${status} · ${formatBytes(item.size)}</div>
+            </div>
+            <button class="mini-btn" onclick='event.stopPropagation(); selectPresentation(${JSON.stringify(String(item.id))})'>${selected ? 'Selected' : 'Select'}</button>
+          </div>`;
+      }).join('');
+      const selectedItem = uploadedPresentations.find(item => item.id === selectedPresentationId);
+      if (label) label.textContent = selectedItem ? ('Selected: ' + selectedItem.name) : 'No file selected yet.';
+      updateUploadSlider();
+      unlockChoiceScroll();
+    }
+
+    function selectPresentation(id) {
+      selectedPresentationId = id;
+      hideError('uploadError');
+      renderUploadedFiles();
+    }
+
+    async function startSelectedPresentation() {
+      const selected = uploadedPresentations.find(item => item.id === selectedPresentationId);
+      if (!selected) {
+        showError('uploadError', 'Input error: please upload or select a presentation file first.');
+        return;
+      }
+      const ok = window.confirm('Start presenting "' + selected.name + '"?');
+      if (!ok) return;
+      if (PRESENTATION_ROLE === 'controller' && IS_MOBILE_VIEW) {
+        // Try to enter mobile fullscreen while this is still close to the user's tap.
+        // Some mobile browsers may still refuse it, but this is the best web-safe attempt.
+        requestPresentationFullscreen(true);
+      }
+      let remotePayload;
+      try {
+        if (!selected.serverUrl && selected.file) showToast('Uploading file for display...');
+        remotePayload = await buildRemotePayload(selected);
+      } catch (err) {
+        showError('uploadError', 'Cannot start on display because the file could not upload to the local server: ' + err.message);
+        return;
+      }
+      const seq = ++localCommandSeq + Date.now() * 1000;
+      lastRemoteStartSeq = seq;
+      await sendPresentationCommand('start', { presentation: remotePayload, seq });
+      await beginPresentationFile(selected, true);
+    }
+
+    async function beginPresentationFile(selected, resetPage = true) {
+      currentPresentation = selected;
+      selectedPresentationId = selected.id;
+      pdfDoc = null;
+      if (resetPage) {
+        pdfPage = 1;
+        pptxPage = 1;
+      }
+      presentationZoom = 1;
+      presentationPanX = 0;
+      presentationPanY = 0;
+      if (selected.type === 'pptx' && selected.parseStatus === 'pending') {
+        showToast('Reading PPTX slides...');
+        await parsePptxSlides(selected).catch(() => null);
+      }
+      if (PRESENTATION_ROLE === 'display') requestPresentationFullscreen();
+      const shell = document.querySelector('#demoPage .demo-shell');
+      if (shell) shell.classList.add('presentation-active');
+      const tutorial = document.getElementById('tutorialMask');
+      if (tutorial) tutorial.classList.add('hidden');
+      showPage('demo');
+      renderPresentationCanvas(selected);
+      if (PRESENTATION_ROLE === 'display') setTimeout(() => requestPresentationFullscreen(), 120);
+      if (PRESENTATION_ROLE === 'controller' && IS_MOBILE_VIEW) setTimeout(() => requestPresentationFullscreen(true), 80);
+      const toastKey = (selected.remoteId || selected.id || selected.name || '') + ':' + (pdfPage || pptxPage || 1);
+      if (window.__lastStartedToastKey !== toastKey || Date.now() - (window.__lastStartedToastAt || 0) > 2000) {
+        window.__lastStartedToastKey = toastKey;
+        window.__lastStartedToastAt = Date.now();
+        showToast('Started presenting ' + selected.name);
+      }
+    }
+
+    function setSlideCardFullscreen(on) {
+      const card = document.getElementById('slideCard');
+      if (!card) return;
+      card.classList.toggle('fullscreen-viewer', !!on);
+    }
+
+
+    function clampZoom(value) {
+      return Math.min(4, Math.max(0.4, Math.round(value * 100) / 100));
+    }
+
+    function normalizeRemoteZoomForThisDevice(remoteZoom, sender) {
+      const z = clampZoom(Number(remoteZoom) || 1);
+      // A phone/tablet and a large display have very different viewport sizes.
+      // When a controller pinches to zoom, applying the exact same zoom number on the display can crop too much.
+      // Use a softer zoom curve on the display, while keeping desktop-to-controller changes readable.
+      if (PRESENTATION_ROLE === 'display' && sender === 'controller') {
+        return clampZoom(1 + (z - 1) * 0.55);
+      }
+      if (PRESENTATION_ROLE === 'controller' && sender === 'display') {
+        return clampZoom(1 + (z - 1) * 1.25);
+      }
+      return z;
+    }
+
+    function normalizeRemotePanForThisDevice(value, sender) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return 0;
+      if (PRESENTATION_ROLE === 'display' && sender === 'controller') return n * 0.55;
+      if (PRESENTATION_ROLE === 'controller' && sender === 'display') return n * 1.25;
+      return n;
+    }
+
+    function getActiveViewerSurface() {
+      return document.getElementById('pdfCanvasWrap') || document.querySelector('.pptx-slide');
+    }
+
+    function applyPptxTransform() {
+      const slide = document.querySelector('.pptx-slide');
+      if (slide) slide.style.transform = `translate(${presentationPanX}px, ${presentationPanY}px) scale(${presentationZoom})`;
+      updateViewerStatus();
+    }
+
+    async function applyZoom(newZoom, options = {}) {
+      if (!currentPresentation) return;
+      const oldZoom = presentationZoom;
+      presentationZoom = clampZoom(newZoom);
+      if (presentationZoom === oldZoom && !options.force) return;
+      if (currentPresentation.type === 'pdf' && pdfDoc) {
+        await renderPdfPage();
+      } else if (currentPresentation.type === 'pptx' || currentPresentation.type === 'ppt') {
+        applyPptxTransform();
+      } else {
+        renderPresentationCanvas(currentPresentation);
+      }
+      if (!options.remote && !options.localOnlyDuringPinch) broadcastViewState();
+    }
+
+    function renderPresentationCanvas(item) {
+      const canvas = document.getElementById('presentationCanvas');
+      if (!canvas || !item) return;
+      setSlideCardFullscreen(true);
+      const shell = document.querySelector('#demoPage .demo-shell');
+      if (shell) shell.classList.add('presentation-active');
+      const name = escapeHtml(item.name);
+      if (item.type === 'pdf') {
+        canvas.innerHTML = `
+          <div class="presentation-toolbar">
+            <strong id="viewerStatus">Presenting PDF · loading...</strong>
+            <span>${name}</span>
+          </div>
+          <div class="viewer-frame">
+            <div class="pdf-canvas-wrap" id="pdfCanvasWrap">
+              <canvas id="pdfCanvas"></canvas>
+              <div id="pdfFallback" class="viewer-message hidden"></div>
+            </div>
+          </div>`;
+        loadAndRenderPdf(item);
+        return;
+      }
+      if (item.type === 'pptx') {
+        const slides = item.slides && item.slides.length ? item.slides : [{title:'PowerPoint file uploaded', body:'The simple PPTX reader could not extract slide text. Use the backend conversion hook to convert PPTX to PDF/images for full-fidelity display.'}];
+        if (pptxPage > slides.length) pptxPage = slides.length;
+        if (pptxPage < 1) pptxPage = 1;
+        const slide = slides[pptxPage - 1];
+        canvas.innerHTML = `
+          <div class="presentation-toolbar">
+            <strong id="viewerStatus">Presenting PowerPoint · Slide ${pptxPage}/${slides.length} · Zoom ${Math.round(presentationZoom * 100)}%</strong>
+            <span>${name}</span>
+          </div>
+          <div class="viewer-frame">
+            <div class="pptx-slide" style="transform:translate(${presentationPanX}px, ${presentationPanY}px) scale(${presentationZoom})">
+              <h2>${escapeHtml(slide.title || ('Slide ' + pptxPage))}</h2>
+              <div class="pptx-lines">${escapeHtml(slide.body || '')}</div>
+            </div>
+          </div>`;
+        return;
+      }
+      canvas.innerHTML = `
+        <div class="presentation-toolbar">
+          <strong id="viewerStatus">PowerPoint file uploaded · Zoom ${Math.round(presentationZoom * 100)}%</strong>
+          <span>${name}</span>
+        </div>
+        <div class="viewer-frame">
+          <div class="pptx-slide" style="transform:translate(${presentationPanX}px, ${presentationPanY}px) scale(${presentationZoom})">
+            <h2>Legacy .ppt preview needs conversion</h2>
+            <div class="pptx-note">
+              This .ppt file was uploaded successfully, but browser-only HTML cannot reliably parse old binary PowerPoint files. Connect ${BACKEND_CONVERT_ENDPOINT} later to convert PPT/PPTX into PDF or slide images, then render them here.
+              <br><br><a style="color:#fff;font-weight:800" href="${item.url}" target="_blank" rel="noopener">Open uploaded file</a>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    async function ensurePdfJs() {
+      if (window.pdfjsLib) return window.pdfjsLib;
+      if (!pdfJsLoadingPromise) {
+        pdfJsLoadingPromise = new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+          script.onload = () => resolve(window.pdfjsLib);
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
+      const lib = await pdfJsLoadingPromise;
+      if (lib && lib.GlobalWorkerOptions) {
+        lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+      return lib;
+    }
+
+    async function loadAndRenderPdf(item) {
+      try {
+        const lib = await ensurePdfJs();
+        pdfDoc = await lib.getDocument(item.url).promise;
+        if (pdfPage > pdfDoc.numPages) pdfPage = pdfDoc.numPages;
+        if (pdfPage < 1) pdfPage = 1;
+        await renderPdfPage();
+      } catch (err) {
+        console.warn('PDF.js failed, using browser PDF fallback:', err);
+        const wrap = document.getElementById('pdfCanvasWrap');
+        if (wrap) {
+          wrap.innerHTML = `<iframe class="native-pdf-frame" src="${item.url}#page=${pdfPage}&zoom=page-fit&toolbar=0&navpanes=0&scrollbar=0" title="${escapeHtml(item.name)}"></iframe>`;
+        }
+        updateViewerStatus();
+      }
+    }
+
+    async function renderPdfPage() {
+      if (!pdfDoc || !currentPresentation || currentPresentation.type !== 'pdf') return;
+      const canvas = document.getElementById('pdfCanvas');
+      const wrap = document.getElementById('pdfCanvasWrap');
+      if (!canvas || !wrap) return;
+      if (pdfRenderTask) {
+        try { pdfRenderTask.cancel(); } catch (e) {}
+      }
+      const page = await pdfDoc.getPage(pdfPage);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const availableW = Math.max(260, wrap.clientWidth - 24);
+      const availableH = Math.max(260, wrap.clientHeight - 24);
+      const fitScale = Math.min(availableW / baseViewport.width, availableH / baseViewport.height);
+      const scale = Math.max(.2, fitScale * presentationZoom);
+      const viewport = page.getViewport({ scale });
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(viewport.width * ratio);
+      canvas.height = Math.floor(viewport.height * ratio);
+      canvas.style.width = Math.floor(viewport.width) + 'px';
+      canvas.style.height = Math.floor(viewport.height) + 'px';
+      canvas.style.transform = `translate(${presentationPanX}px, ${presentationPanY}px)`;
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      updateViewerStatus();
+      pdfRenderTask = page.render({ canvasContext: ctx, viewport });
+      try { await pdfRenderTask.promise; } catch (err) { if (err && err.name !== 'RenderingCancelledException') console.warn(err); }
+      pdfRenderTask = null;
+    }
+
+    function updateViewerStatus() {
+      const status = document.getElementById('viewerStatus');
+      if (!status || !currentPresentation) return;
+      if (currentPresentation.type === 'pdf') {
+        const total = pdfDoc ? pdfDoc.numPages : '?';
+        status.textContent = `Presenting PDF · Page ${pdfPage}/${total} · Zoom ${Math.round(presentationZoom * 100)}%`;
+      } else if (currentPresentation.type === 'pptx') {
+        const total = currentPresentation.slides && currentPresentation.slides.length ? currentPresentation.slides.length : 1;
+        status.textContent = `Presenting PowerPoint · Slide ${pptxPage}/${total} · Zoom ${Math.round(presentationZoom * 100)}%`;
+      }
+    }
+
+    function updateSlide() {
+      if (currentPresentation) {
+        renderPresentationCanvas(currentPresentation);
+      } else {
+        setSlideCardFullscreen(false);
+        const canvas = document.getElementById('presentationCanvas');
+        if (canvas) canvas.innerHTML = '<div class="slide-big" id="slideText">PAGE ' + demoIndex + '</div><div class="slide-sub">Clean, high-contrast branded navigation.</div>';
+      }
+    }
+
+    function resetViewForPageChange() {
+      presentationZoom = 1;
+      presentationPanX = 0;
+      presentationPanY = 0;
+    }
+
+    function nextDemoPage() {
+      if (!pages.demo || !pages.demo.classList.contains('active')) return;
+      if (currentPresentation) {
+        let changed = false;
+        if (currentPresentation.type === 'pdf') {
+          const before = pdfPage;
+          if (!pdfDoc || pdfPage < pdfDoc.numPages) pdfPage += 1;
+          changed = pdfPage !== before;
+          if (changed) resetViewForPageChange();
+          if (pdfDoc) renderPdfPage(); else renderPresentationCanvas(currentPresentation);
+        } else if (currentPresentation.type === 'pptx') {
+          const before = pptxPage;
+          const max = currentPresentation.slides && currentPresentation.slides.length ? currentPresentation.slides.length : 1;
+          if (pptxPage < max) pptxPage += 1;
+          changed = pptxPage !== before;
+          if (changed) resetViewForPageChange();
+          renderPresentationCanvas(currentPresentation);
+        }
+        broadcastViewState();
+        return;
+      }
+      if (demoIndex < 5) { demoIndex += 1; updateSlide(); } else { showPage('confirm'); }
+    }
+
+    function prevDemoPage() {
+      if (!pages.demo || !pages.demo.classList.contains('active')) return;
+      if (currentPresentation) {
+        if (currentPresentation.type === 'pdf' && pdfPage > 1) {
+          pdfPage -= 1;
+          resetViewForPageChange();
+          if (pdfDoc) renderPdfPage(); else renderPresentationCanvas(currentPresentation);
+        } else if (currentPresentation.type === 'pptx' && pptxPage > 1) {
+          pptxPage -= 1;
+          resetViewForPageChange();
+          renderPresentationCanvas(currentPresentation);
+        }
+        broadcastViewState();
+        return;
+      }
+      if (demoIndex > 1) { demoIndex -= 1; updateSlide(); }
+    }
+
+    async function switchPresentationFile(direction) {
+      if (!uploadedPresentations.length || !currentPresentation) return;
+      const currentIndex = Math.max(0, uploadedPresentations.findIndex(item => item.id === currentPresentation.id || item.remoteId === currentPresentation.id));
+      const nextIndex = Math.min(uploadedPresentations.length - 1, Math.max(0, currentIndex + direction));
+      if (nextIndex === currentIndex) return;
+      const token = ++lastSwitchToken;
+      const nextItem = uploadedPresentations[nextIndex];
+      selectedPresentationId = nextItem.id;
+      renderUploadedFiles();
+      if (PRESENTATION_ROLE === 'controller') {
+        try {
+          const remotePayload = await buildRemotePayload(nextItem);
+          if (token !== lastSwitchToken) return;
+          const seq = ++localCommandSeq + Date.now() * 1000;
+          lastRemoteStartSeq = seq;
+          await sendPresentationCommand('start', { presentation: remotePayload, seq });
+        } catch (err) {
+          showToast('Switch failed: ' + err.message);
+          return;
+        }
+      }
+      if (token !== lastSwitchToken) return;
+      await beginPresentationFile(nextItem, true);
+    }
+
+    async function switchPresentationFileFromKeyboard(direction) {
+      const dir = Number(direction) < 0 ? -1 : 1;
+      const action = dir < 0 ? 'prev' : 'next';
+      if (PRESENTATION_ROLE === 'display') {
+        // Display does not own the full uploaded file list, so it asks Controller to switch.
+        await sendPresentationCommand('switch-file-request', { direction: dir, action });
+        showToast(action === 'prev' ? 'Requesting previous file...' : 'Requesting next file...');
+        return;
+      }
+      await switchPresentationFile(dir);
+    }
+
+    function zoomInPresentation() {
+      if (!currentPresentation) return;
+      applyZoom(presentationZoom + 0.1);
+    }
+
+    function zoomOutPresentation() {
+      if (!currentPresentation) return;
+      applyZoom(presentationZoom - 0.1);
+    }
+
+    function resetPresentationZoom() {
+      if (!currentPresentation) return;
+      presentationZoom = 1;
+      presentationPanX = 0;
+      presentationPanY = 0;
+      if (currentPresentation.type === 'pdf' && pdfDoc) renderPdfPage();
+      else renderPresentationCanvas(currentPresentation);
+      broadcastViewState();
+    }
+
+    function closeTutorial() {
+      const tutorial = document.getElementById('tutorialMask');
+      if (tutorial) tutorial.classList.add('hidden');
+    }
+
+    function backFromConfirm() {
+      demoIndex = 5;
+      updateSlide();
+      showPage('demo');
+    }
+
+    async function exitFlow(notify = true) {
+      hideSessionOverlay();
+
+      // Display: leave the room slot and return to the waiting screen (not the upload/choice page).
+      if (PRESENTATION_ROLE === 'display') {
+        if (notify) {
+          try { await sendPresentationCommand('exit'); } catch (e) {}
+        }
+        await returnDisplayToWaiting();
+        return;
+      }
+
+      // Controller: end the presentation for the display, then go back to upload / share choice.
+      if (notify && currentPresentation) {
+        try { await sendPresentationCommand('exit'); } catch (e) {}
+      }
+      resetPresentationViewerState();
+      updateSlide();
+      renderUploadedFiles();
+      showPage('choice');
+      updateControllerDisconnectVisibility('choice');
+    }
+
+    function getActiveScreenShareRoom() {
+      return (SCREEN_SHARE_ROOM_ID || ROOM_ID || '').replace(/\s/g, '');
+    }
+
+    function showRemoteScreenShareOverlay(on) {
+      const overlay = document.getElementById('remoteScreenShareOverlay');
+      if (!overlay) return;
+      overlay.style.display = on ? 'flex' : 'none';
+      overlay.classList.toggle('hidden', !on);
+    }
+
+    function setRemoteScreenShareStatus(text) {
+      const el = document.getElementById('remoteScreenShareStatus');
+      if (el) el.textContent = text;
+    }
+
+    async function startPrepareCountdown() {
+      hideError('shareError');
+      stopActiveScreenShare();
+      const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+      if (!window.isSecureContext && !isLocalhost) {
+        const localUrl = 'https://localhost:3000/presentation?room=' + encodeURIComponent(ROOM_ID);
+        showError(
+          'shareError',
+          'Browser screen sharing needs HTTPS or localhost. You opened this page via a LAN IP over HTTP, which browsers block. On the presenting computer use desktop Chrome/Edge and open: ' +
+            localUrl +
+            ' (or enable HTTPS on the server with npm run generate-certs). Phones usually cannot share the system screen.'
+        );
+        return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        showError('shareError', 'This browser/device does not support screen sharing. Use desktop Chrome or Edge on the presenting computer.');
+        return;
+      }
+      try {
+        // Prefer video-only first; some OS/browser combos fail when audio:true is required.
+        try {
+          activeScreenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        } catch (audioErr) {
+          activeScreenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        }
+      } catch (err) {
+        showError('shareError', 'Screen sharing permission was cancelled or blocked. Please try again.');
+        return;
+      }
+
+      // Ensure we have a signaling room for the display to join.
+      if (!SCREEN_SHARE_ROOM_ID) SCREEN_SHARE_ROOM_ID = ROOM_ID;
+      try {
+        const sessionRes = await fetch(SCREEN_SHARE_API_BASE + '/api/screen-share/session', { method: 'POST' });
+        if (sessionRes.ok) {
+          const session = await sessionRes.json();
+          if (session.room_code) SCREEN_SHARE_ROOM_ID = String(session.room_code);
+        }
+      } catch (err) {
+        console.warn('Could not create dedicated screen-share session; using presentation room.', err);
+        SCREEN_SHARE_ROOM_ID = getActiveScreenShareRoom();
+      }
+
+      await sendPresentationCommand('screen-share-start', {
+        screenRoom: getActiveScreenShareRoom(),
+        presentation: {
+          id: 'screen-share',
+          name: 'Screen Share',
+          type: 'screen',
+          url: null
+        }
+      });
+
+      const seconds = parseInt(document.getElementById('countdownSelect').value, 10) || 5;
+      let remain = seconds;
+      const count = document.getElementById('countNum');
+      if (count) count.textContent = remain;
+      showPage('countdown');
+      clearInterval(countdownTimer);
+      countdownTimer = setInterval(() => {
+        remain -= 1;
+        if (count) count.textContent = Math.max(0, remain);
+        if (remain <= 0) {
+          clearInterval(countdownTimer);
+          showRealScreenShare();
+        }
+      }, 1000);
+    }
+
+    function ensureScreenShareSocket(role) {
+      if (!window.io) {
+        console.warn('Socket.IO not loaded');
+        return null;
+      }
+      if (!screenShareSocket) {
+        screenShareSocket = io(SCREEN_SHARE_API_BASE, { transports: ['websocket', 'polling'] });
+        screenShareSocket.on('screen-share-answer', async (data) => {
+          if (PRESENTATION_ROLE !== 'controller') return;
+          if (!screenSharePeerConnection || !data || !data.answer) return;
+          try {
+            await screenSharePeerConnection.setRemoteDescription(data.answer);
+            showToast('Display connected to screen share');
+          } catch (err) {
+            console.warn('Failed to apply screen-share answer:', err);
+          }
+        });
+        screenShareSocket.on('screen-share-offer', async (data) => {
+          if (PRESENTATION_ROLE !== 'display') return;
+          if (!data || !data.offer) return;
+          try {
+            await handleDisplayScreenShareOffer(data.offer);
+          } catch (err) {
+            setRemoteScreenShareStatus('Failed to accept screen share: ' + err.message);
+          }
+        });
+        screenShareSocket.on('ice-candidate', async (data) => {
+          if (!data || !data.candidate) return;
+          if (!screenSharePeerConnection || !screenSharePeerConnection.remoteDescription) {
+            pendingScreenShareIceCandidates.push(data.candidate);
+            return;
+          }
+          try {
+            await screenSharePeerConnection.addIceCandidate(data.candidate);
+          } catch (err) {
+            console.warn('ICE candidate failed:', err);
+          }
+        });
+        screenShareSocket.on('participant-joined', (data) => {
+          if (PRESENTATION_ROLE === 'controller' && data && data.role === 'display' && activeScreenStream) {
+            startWebRtcScreenShareToRoom(true).catch((err) => console.warn(err));
+          }
+        });
+        screenShareSocket.on('stop-screen-share', () => {
+          if (PRESENTATION_ROLE === 'display') stopDisplayScreenShareReceiver('remote stop');
+          else stopActiveScreenShare(false);
+        });
+        screenShareSocket.on('joined-screen-share-room', (data) => {
+          console.log('[screen-share] joined', data);
+        });
+        screenShareSocket.on('screen-share-room-joined', (data) => {
+          console.log('[screen-share] joined', data);
+        });
+      }
+      const room = getActiveScreenShareRoom();
+      const join = () => screenShareSocket.emit('join-screen-share-room', { room, role: role || (PRESENTATION_ROLE === 'display' ? 'display' : 'presenter') });
+      if (screenShareSocket.connected) join();
+      else screenShareSocket.on('connect', join);
+      return screenShareSocket;
+    }
+
+    async function flushPendingIce() {
+      if (!screenSharePeerConnection) return;
+      const pending = pendingScreenShareIceCandidates.splice(0);
+      for (const candidate of pending) {
+        try { await screenSharePeerConnection.addIceCandidate(candidate); } catch (e) {}
+      }
+    }
+
+    async function handleDisplayScreenShareOffer(offer) {
+      const room = getActiveScreenShareRoom();
+      const socket = ensureScreenShareSocket('display');
+      if (!socket) throw new Error('Socket.IO unavailable');
+      if (screenSharePeerConnection) {
+        try { screenSharePeerConnection.close(); } catch (e) {}
+      }
+      const pc = new RTCPeerConnection(SCREEN_SHARE_RTC_CONFIG);
+      screenSharePeerConnection = pc;
+      pc.ontrack = (event) => {
+        const video = document.getElementById('remoteScreenShareVideo');
+        if (video) {
+          video.srcObject = event.streams[0] || new MediaStream([event.track]);
+          video.play().catch(() => {});
+        }
+        showRemoteScreenShareOverlay(true);
+        setRemoteScreenShareStatus('Live screen share');
+        screenShareActive = true;
+      };
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('ice-candidate', { room, candidate: event.candidate, role: 'display' });
+        }
+      };
+      await pc.setRemoteDescription(offer);
+      await flushPendingIce();
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit('screen-share-answer', { room, answer, role: 'display' });
+      setRemoteScreenShareStatus('Connected. Waiting for video...');
+    }
+
+    function joinDisplayScreenShareRoom(roomCode) {
+      if (PRESENTATION_ROLE !== 'display') return;
+      if (roomCode) SCREEN_SHARE_ROOM_ID = String(roomCode).replace(/\s/g, '');
+      ensureScreenShareSocket('display');
+      showRemoteScreenShareOverlay(true);
+      setRemoteScreenShareStatus('Joined room ' + getActiveScreenShareRoom() + '. Waiting for presenter...');
+    }
+
+    function stopDisplayScreenShareReceiver(reason) {
+      if (screenSharePeerConnection) {
+        try { screenSharePeerConnection.close(); } catch (e) {}
+        screenSharePeerConnection = null;
+      }
+      pendingScreenShareIceCandidates = [];
+      const video = document.getElementById('remoteScreenShareVideo');
+      if (video) video.srcObject = null;
+      showRemoteScreenShareOverlay(false);
+      screenShareActive = false;
+      setRemoteScreenShareStatus('Screen share ended: ' + (reason || 'stopped'));
+      if (PRESENTATION_ROLE === 'display') showWaitingForController();
+    }
+
+    async function startWebRtcScreenShareToRoom(force = false) {
+      const room = getActiveScreenShareRoom();
+      if (!room || !activeScreenStream || !window.RTCPeerConnection) return;
+      const socket = ensureScreenShareSocket('presenter');
+      if (!socket) return;
+
+      if (screenSharePeerConnection && !force) return;
+      if (screenSharePeerConnection) {
+        try { screenSharePeerConnection.close(); } catch (e) {}
+      }
+      const pc = new RTCPeerConnection(SCREEN_SHARE_RTC_CONFIG);
+      screenSharePeerConnection = pc;
+      activeScreenStream.getTracks().forEach((track) => pc.addTrack(track, activeScreenStream));
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('ice-candidate', { room, candidate: event.candidate, role: 'presenter' });
+        }
+      };
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit('screen-share-offer', { room, offer, role: 'presenter' });
+      showToast('Screen share offer sent');
+    }
+
+    function showRealScreenShare() {
+      const video = document.getElementById('screenShareVideo');
+      if (video && activeScreenStream) {
+        video.srcObject = activeScreenStream;
+        video.play().catch(() => {});
+        const track = activeScreenStream.getVideoTracks()[0];
+        if (track) track.onended = () => exitFlow();
+      }
+      showPage('share');
+      screenShareActive = true;
+      startWebRtcScreenShareToRoom(true).catch((err) => {
+        console.warn('WebRTC screen share failed:', err);
+        showError('shareError', 'Could not start WebRTC screen share: ' + err.message);
+      });
+    }
+
+    function stopActiveScreenShare(notifyRemote = true) {
+      const room = getActiveScreenShareRoom();
+      if (notifyRemote && room && screenShareSocket) {
+        try {
+          screenShareSocket.emit('stop-screen-share', { room, role: PRESENTATION_ROLE === 'display' ? 'display' : 'presenter' });
+        } catch (e) {}
+      }
+      if (PRESENTATION_ROLE === 'controller' && notifyRemote) {
+        sendPresentationCommand('screen-share-stop', { screenRoom: room }).catch(() => {});
+      }
+      if (screenSharePeerConnection) {
+        try { screenSharePeerConnection.close(); } catch (e) {}
+        screenSharePeerConnection = null;
+      }
+      pendingScreenShareIceCandidates = [];
+      if (activeScreenStream) {
+        activeScreenStream.getTracks().forEach((track) => track.stop());
+        activeScreenStream = null;
+      }
+      const video = document.getElementById('screenShareVideo');
+      if (video) video.srcObject = null;
+      showRemoteScreenShareOverlay(false);
+      screenShareActive = false;
+    }
+
+    async function parsePptxSlides(item) {
+      if (!item || item.type !== 'pptx' || item.parseStatus === 'ready') return;
+      try {
+        const buffer = await item.file.arrayBuffer();
+        const entries = await readZipEntries(buffer);
+        const slideNames = Object.keys(entries).filter(name => /^ppt\/slides\/slide\d+\.xml$/i.test(name)).sort((a,b) => {
+          const na = parseInt(a.match(/slide(\d+)\.xml/i)[1], 10);
+          const nb = parseInt(b.match(/slide(\d+)\.xml/i)[1], 10);
+          return na - nb;
+        });
+        const slides = [];
+        for (const name of slideNames) {
+          const xml = await entries[name]();
+          const doc = new DOMParser().parseFromString(xml, 'application/xml');
+          const texts = Array.from(doc.getElementsByTagName('a:t')).map(n => n.textContent.trim()).filter(Boolean);
+          slides.push({
+            title: texts[0] || name.split('/').pop().replace('.xml',''),
+            body: texts.slice(1).join('\n') || texts.join('\n') || 'No readable text found on this slide.'
+          });
+        }
+        item.slides = slides.length ? slides : [{title:'PowerPoint file uploaded', body:'No readable text was found in this PPTX.'}];
+        item.parseStatus = 'ready';
+      } catch (err) {
+        console.warn('PPTX simple reader failed:', err);
+        item.slides = [{title:'PowerPoint reader fallback', body:'This PPTX was uploaded, but the browser simple reader could not extract its slide text. For accurate layout/images, connect the backend converter endpoint.'}];
+        item.parseStatus = 'failed';
+      }
+    }
+
+    async function readZipEntries(buffer) {
+      const view = new DataView(buffer);
+      const bytes = new Uint8Array(buffer);
+      let eocd = -1;
+      for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 66000); i--) {
+        if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+      }
+      if (eocd < 0) throw new Error('ZIP end record not found');
+      const entriesCount = view.getUint16(eocd + 10, true);
+      const centralOffset = view.getUint32(eocd + 16, true);
+      const entries = {};
+      let ptr = centralOffset;
+      const decoder = new TextDecoder();
+      for (let i = 0; i < entriesCount; i++) {
+        if (view.getUint32(ptr, true) !== 0x02014b50) break;
+        const method = view.getUint16(ptr + 10, true);
+        const compressedSize = view.getUint32(ptr + 20, true);
+        const fileNameLength = view.getUint16(ptr + 28, true);
+        const extraLength = view.getUint16(ptr + 30, true);
+        const commentLength = view.getUint16(ptr + 32, true);
+        const localOffset = view.getUint32(ptr + 42, true);
+        const name = decoder.decode(bytes.slice(ptr + 46, ptr + 46 + fileNameLength));
+        entries[name] = async () => {
+          const localNameLength = view.getUint16(localOffset + 26, true);
+          const localExtraLength = view.getUint16(localOffset + 28, true);
+          const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+          const data = bytes.slice(dataStart, dataStart + compressedSize);
+          if (method === 0) return decoder.decode(data);
+          if (method === 8 && 'DecompressionStream' in window) {
+            const ds = new DecompressionStream('deflate-raw');
+            const blob = new Blob([data]).stream().pipeThrough(ds);
+            const out = await new Response(blob).arrayBuffer();
+            return decoder.decode(out);
+          }
+          throw new Error('Unsupported ZIP compression method');
+        };
+        ptr += 46 + fileNameLength + extraLength + commentLength;
+      }
+      return entries;
+    }
+
+    // Keep legacy modal functions harmless in case old buttons remain cached.
+    function openUploadModal(autoOpenPicker = false) { if (autoOpenPicker) triggerPresentationFilePicker(); }
+    function closeUploadModal() {}
+    function confirmUpload() { startSelectedPresentation(); }
+
+
+
+    // Mobile-safe bindings: avoid relying only on inline onclick handlers.
+    function bindSafeTap(id, handler) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('click', (event) => {
+        event.preventDefault();
+        handler(event);
+      });
+      el.addEventListener('touchend', (event) => {
+        event.preventDefault();
+        handler(event);
+      }, { passive: false });
+      el.addEventListener('pointerup', (event) => {
+        event.preventDefault();
+        handler(event);
+      }, { passive: false });
+    }
+
+    bindSafeTap('continueBtn', validateJoinCode);
+    const joinCodeInput = document.getElementById('joinCode');
+    if (joinCodeInput) {
+      joinCodeInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          validateJoinCode();
+        }
+      });
+    }
+
+    // Keep functions global for any remaining inline buttons in older cached HTML.
+    window.validateJoinCode = validateJoinCode;
+    window.triggerPresentationFilePicker = triggerPresentationFilePicker;
+    window.startSelectedPresentation = startSelectedPresentation;
+    window.selectPresentation = selectPresentation;
+    window.loadStoredPresentations = loadStoredPresentations;
+    window.handlePresentationFiles = handlePresentationFiles;
+    window.startScreenShare = startPrepareCountdown;
+    window.startPrepareCountdown = startPrepareCountdown;
+    window.exitFlow = exitFlow;
+    window.nextDemoPage = nextDemoPage;
+    window.prevDemoPage = prevDemoPage;
+    window.switchPresentationFile = switchPresentationFile;
+    window.switchPresentationFileFromKeyboard = switchPresentationFileFromKeyboard;
+
+
+    document.addEventListener('keydown', (event) => {
+      if (!pages.demo || !pages.demo.classList.contains('active')) return;
+      if (event.key === 'ArrowRight') { event.preventDefault(); nextDemoPage(); }
+      else if (event.key === 'ArrowLeft') { event.preventDefault(); prevDemoPage(); }
+      else if (event.key === 'ArrowDown') { event.preventDefault(); switchPresentationFileFromKeyboard(1); }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); switchPresentationFileFromKeyboard(-1); }
+      else if (event.key === '+' || event.key === '=') { event.preventDefault(); zoomInPresentation(); }
+      else if (event.key === '-' || event.key === '_') { event.preventDefault(); zoomOutPresentation(); }
+      else if (event.key === '0') { event.preventDefault(); resetPresentationZoom(); }
+      else if (event.key === 'Escape') { event.preventDefault(); exitFlow(); }
+    });
+
+    const demoPageEl = document.getElementById('demoPage');
+    if (demoPageEl) {
+      demoPageEl.addEventListener('wheel', (event) => {
+        if (!currentPresentation || !pages.demo || !pages.demo.classList.contains('active')) return;
+        event.preventDefault();
+        const factor = event.deltaY < 0 ? 1.08 : 0.92;
+        applyZoom(presentationZoom * factor, { clientX: event.clientX, clientY: event.clientY });
+      }, { passive: false });
+
+      demoPageEl.addEventListener('mousedown', (event) => {
+        if (!currentPresentation || !pages.demo || !pages.demo.classList.contains('active')) return;
+        if (event.button !== 0) return;
+        if (event.target.closest('button,.top-exit,.presentation-toolbar,.zoom-controls')) return;
+        const pdfWrap = document.getElementById('pdfCanvasWrap');
+        const pptSlide = document.querySelector('.pptx-slide');
+        isViewerDragging = true;
+        dragStartX = event.clientX;
+        dragStartY = event.clientY;
+        dragStartPanX = presentationPanX;
+        dragStartPanY = presentationPanY;
+        dragStartScrollLeft = pdfWrap ? pdfWrap.scrollLeft : 0;
+        dragStartScrollTop = pdfWrap ? pdfWrap.scrollTop : 0;
+        if (pdfWrap) pdfWrap.classList.add('dragging');
+        if (pptSlide) pptSlide.classList.add('dragging');
+        event.preventDefault();
+      });
+
+      window.addEventListener('mousemove', (event) => {
+        if (!isViewerDragging) return;
+        const dx = event.clientX - dragStartX;
+        const dy = event.clientY - dragStartY;
+        const pdfWrap = document.getElementById('pdfCanvasWrap');
+        if (currentPresentation && currentPresentation.type === 'pdf') {
+          presentationPanX = dragStartPanX + dx;
+          presentationPanY = dragStartPanY + dy;
+          const canvas = document.getElementById('pdfCanvas');
+          if (canvas) canvas.style.transform = `translate(${presentationPanX}px, ${presentationPanY}px)`;
+        } else {
+          presentationPanX = dragStartPanX + dx;
+          presentationPanY = dragStartPanY + dy;
+          applyPptxTransform();
+        }
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (!isViewerDragging) return;
+        isViewerDragging = false;
+        const pdfWrap = document.getElementById('pdfCanvasWrap');
+        const pptSlide = document.querySelector('.pptx-slide');
+        if (pdfWrap) pdfWrap.classList.remove('dragging');
+        if (pptSlide) pptSlide.classList.remove('dragging');
+        broadcastViewState();
+      });
+
+      function getTouchDistance(touches) {
+        if (!touches || touches.length < 2) return 0;
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        return Math.hypot(dx, dy);
+      }
+
+      function getViewerSize() {
+        const frame = document.querySelector('.viewer-frame') || document.getElementById('pdfCanvasWrap') || demoPageEl;
+        return { w: frame ? frame.clientWidth : window.innerWidth, h: frame ? frame.clientHeight : window.innerHeight };
+      }
+
+      function getContentSize() {
+        if (currentPresentation && currentPresentation.type === 'pdf') {
+          const canvas = document.getElementById('pdfCanvas');
+          if (canvas) return { w: canvas.offsetWidth, h: canvas.offsetHeight };
+        }
+        const slide = document.querySelector('.pptx-slide');
+        if (slide) return { w: slide.offsetWidth * presentationZoom, h: slide.offsetHeight * presentationZoom };
+        return getViewerSize();
+      }
+
+      function getPanBounds() {
+        if (!currentPresentation || presentationZoom <= 1.01) return { minX:0, maxX:0, minY:0, maxY:0 };
+        const viewer = getViewerSize();
+        const content = getContentSize();
+        let overflowX = Math.max(0, (content.w - viewer.w) / 2);
+        let overflowY = Math.max(0, (content.h - viewer.h) / 2);
+        if (PRESENTATION_ROLE === 'controller') {
+          const freeX = viewer.w * Math.max(0.35, (presentationZoom - 1) * 0.85);
+          const freeY = viewer.h * Math.max(0.35, (presentationZoom - 1) * 0.85);
+          overflowX = Math.max(overflowX, freeX);
+          overflowY = Math.max(overflowY, freeY);
+        }
+        return { minX:-overflowX, maxX:overflowX, minY:-overflowY, maxY:overflowY };
+      }
+
+      function clampPanToBounds() {
+        const b = getPanBounds();
+        presentationPanX = Math.max(b.minX, Math.min(b.maxX, presentationPanX));
+        presentationPanY = Math.max(b.minY, Math.min(b.maxY, presentationPanY));
+        return b;
+      }
+
+      function getEdgeState() {
+        const b = getPanBounds();
+        const eps = 6;
+        return {
+          left: presentationPanX >= b.maxX - eps,
+          right: presentationPanX <= b.minX + eps,
+          top: presentationPanY >= b.maxY - eps,
+          bottom: presentationPanY <= b.minY + eps,
+          bounds: b
+        };
+      }
+
+      function applyTouchPan() {
+        clampPanToBounds();
+        if (currentPresentation && currentPresentation.type === 'pdf') {
+          const canvas = document.getElementById('pdfCanvas');
+          if (canvas) canvas.style.transform = `translate(${presentationPanX}px, ${presentationPanY}px)`;
+        } else {
+          applyPptxTransform();
+        }
+      }
+
+      demoPageEl.addEventListener('touchstart', (event) => {
+        if (!event.touches || !event.touches.length) return;
+        if (event.touches.length >= 2 && currentPresentation) {
+          touchWasPinching = true;
+          touchIsPanning = false;
+          pinchStartDistance = getTouchDistance(event.touches);
+          pinchStartZoom = presentationZoom;
+          return;
+        }
+        touchWasPinching = false;
+        touchIsPanning = !!(currentPresentation && presentationZoom > 1.01);
+        touchStartX = event.touches[0].clientX;
+        touchStartY = event.touches[0].clientY;
+        touchStartPanX = presentationPanX;
+        touchStartPanY = presentationPanY;
+        touchStartEdge = getEdgeState();
+      }, { passive: true });
+
+      demoPageEl.addEventListener('touchmove', (event) => {
+        if (!currentPresentation || !event.touches || !event.touches.length) return;
+        if (event.touches.length >= 2 && pinchStartDistance) {
+          event.preventDefault();
+          const distance = getTouchDistance(event.touches);
+          if (!distance) return;
+          applyZoom(pinchStartZoom * (distance / pinchStartDistance), { localOnlyDuringPinch:true });
+          return;
+        }
+        if (touchIsPanning && event.touches.length === 1) {
+          event.preventDefault();
+          const dx = event.touches[0].clientX - touchStartX;
+          const dy = event.touches[0].clientY - touchStartY;
+          presentationPanX = touchStartPanX + dx;
+          presentationPanY = touchStartPanY + dy;
+          applyTouchPan();
+        }
+      }, { passive: false });
+
+      demoPageEl.addEventListener('touchend', (event) => {
+        if (touchWasPinching) {
+          if (!event.touches || event.touches.length < 2) {
+            touchWasPinching = false;
+            pinchStartDistance = 0;
+            clampPanToBounds();
+            if (currentPresentation && currentPresentation.type === 'pdf' && pdfDoc) renderPdfPage();
+            else applyTouchPan();
+            broadcastViewState();
+          }
+          return;
+        }
+        if (!event.changedTouches || !event.changedTouches.length) return;
+        const dx = event.changedTouches[0].clientX - touchStartX;
+        const dy = event.changedTouches[0].clientY - touchStartY;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < 45) {
+          if (touchIsPanning) broadcastViewState();
+          return;
+        }
+        if (touchIsPanning) {
+          // Mobile gestures are now reserved for moving/zooming the current slide only.
+          // Page/file switching stays on the visible buttons to avoid accidental changes.
+          clampPanToBounds();
+          applyTouchPan();
+          broadcastViewState();
+          return;
+        }
+        // Do not switch pages/files by swiping on mobile. Use the on-screen buttons instead.
+        return;
+      }, { passive: true });
+    }
+
+
+    // Extra desktop keyboard support. Mobile swipe gestures remain disabled.
+    // This listener is intentionally capture-phase so arrow keys still work if the presentation surface has focus.
+    window.addEventListener('keydown', function(event) {
+      const target = event.target;
+      const tag = target && target.tagName ? target.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || (target && target.isContentEditable)) return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (!pages.demo || !pages.demo.classList.contains('active') || !currentPresentation) return;
+
+      let handled = true;
+      if (event.key === 'ArrowRight' || event.key === 'PageDown') nextDemoPage();
+      else if (event.key === 'ArrowLeft' || event.key === 'PageUp') prevDemoPage();
+      else if (event.key === 'ArrowUp') switchPresentationFileFromKeyboard(-1);
+      else if (event.key === 'ArrowDown') switchPresentationFileFromKeyboard(1);
+      else if (event.key === '+' || event.key === '=') zoomInPresentation();
+      else if (event.key === '-' || event.key === '_') zoomOutPresentation();
+      else if (event.key === '0') resetPresentationZoom();
+      else if (event.key === 'Escape') exitFlow();
+      else handled = false;
+
+      if (handled) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+      }
+    }, true);
+
+
+    connectPresentationEvents();
+    window.addEventListener('DOMContentLoaded', () => {
+      ensureControllerDisconnectButton();
+      if (PRESENTATION_ROLE === 'controller') {
+        try {
+          if (sessionStorage.getItem(DISCONNECTED_STORAGE_KEY) === '1') {
+            showSessionInfo('This controller is disconnected. Another device can now join this room.');
+            return;
+          }
+        } catch(e) {}
+      }
+      // The pre-opened waiting display window must not occupy the single display slot.
+      // It only joins the room when the controller actually starts presenting.
+      if (!(PRESENTATION_ROLE === 'display' && DISPLAY_WAITING_MODE)) startPresenceGuard();
+      if (PRESENTATION_ROLE === 'display') {
+        showWaitingForController();
+      }
+      else if (params.get('room')) {
+        const input = document.getElementById('joinCode');
+        if (input) input.value = ROOM_ID;
+        showPage('choice');
+        loadStoredPresentations();
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      if (currentPresentation && currentPresentation.type === 'pdf' && pdfDoc && pages.demo && pages.demo.classList.contains('active')) {
+        clearTimeout(window.__pdfResizeTimer);
+        window.__pdfResizeTimer = setTimeout(renderPdfPage, 120);
+      }
+    });
+
+    window.addEventListener('orientationchange', () => {
+      if (PRESENTATION_ROLE === 'controller' && IS_MOBILE_VIEW && currentPresentation && pages.demo && pages.demo.classList.contains('active')) {
+        setTimeout(() => requestPresentationFullscreen(true), 250);
+      }
+    });
+
+    renderUploadedFiles();
+  </script>
+</body>
+</html>

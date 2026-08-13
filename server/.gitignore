@@ -1,0 +1,14 @@
+node_modules/
+storage/app.db
+storage/app.db-*
+storage/uploads/*
+storage/presentations/*
+storage/converted/*
+storage/backups/
+storage/certs/
+!storage/uploads/.gitkeep
+!storage/presentations/.gitkeep
+!storage/converted/.gitkeep
+.env
+*.log
+.DS_Store
