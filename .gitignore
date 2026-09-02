@@ -1,3 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# macOS / editors
+.DS_Store
+.idea/
+.vscode/
+
+# Legacy Flask runtime
+backend/database/*.db
+backend/static/uploads/*
+!backend/static/uploads/.gitkeep
 
 # Production Node server
 server/node_modules/
@@ -11,3 +28,5 @@ server/storage/presentations/*
 server/storage/converted/*
 !server/storage/converted/.gitkeep
 server/storage/backups/
+server/storage/certs/
+*.log
