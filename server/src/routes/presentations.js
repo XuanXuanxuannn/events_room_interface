@@ -7,6 +7,7 @@ const { asyncHandler } = require('../middleware/errors');
 const { getValidSession, extractToken } = require('../middleware/auth');
 const { attachEvents, handleCommand } = require('../services/presentationSync');
 const { handlePresence } = require('../services/roomManager');
+const { convertPresentation } = require('../services/conversionService');
 
 const router = express.Router();
 
@@ -102,20 +103,64 @@ router.post(
     const ext = path.extname(file.originalname || '').toLowerCase().replace('.', '') || 'pdf';
     const id = `${Date.now().toString(36)}-${uuidv4().slice(0, 8)}`;
     const url = `/presentation_uploads/${file.filename}`;
+    const originalName = file.originalname || file.filename;
     getDb()
       .prepare(
         `INSERT INTO uploaded_files
            (id, filename, file_type, file_path, public_url, size, status, uploaded_by, uploaded_at)
          VALUES (?, ?, ?, ?, ?, ?, 'uploaded', ?, datetime('now'))`
       )
-      .run(id, file.originalname || file.filename, ext, file.path, url, file.size || 0, null);
+      .run(id, originalName, ext, file.path, url, file.size || 0, null);
+
+    // PDF uploads are ready immediately.
+    if (ext === 'pdf') {
+      return res.status(201).json({
+        id,
+        name: originalName,
+        type: 'pdf',
+        size: file.size || 0,
+        url,
+        converted: false,
+      });
+    }
+
+    // PPT/PPTX: convert to PDF on upload so Start Presentation can use PDF.js directly.
+    if (ext === 'ppt' || ext === 'pptx') {
+      try {
+        const converted = await convertPresentation({
+          sourcePath: file.path,
+          originalName,
+          sourceId: id,
+          uploadedBy: 'controller',
+        });
+        return res.status(201).json({
+          id: converted.id,
+          name: converted.name || converted.filename || originalName.replace(/\.(ppt|pptx)$/i, '.pdf'),
+          type: 'pdf',
+          size: converted.size || 0,
+          url: converted.url,
+          sourceName: originalName,
+          converted: true,
+          status: converted.status || 'ready',
+        });
+      } catch (err) {
+        const status = /LibreOffice failed to start/i.test(err.message) ? 503 : 500;
+        return res.status(status).json({
+          ok: false,
+          error: err.message,
+          hint: 'Install LibreOffice and set LIBREOFFICE_BIN in .env',
+          sourceId: id,
+        });
+      }
+    }
 
     res.status(201).json({
       id,
-      name: file.originalname || file.filename,
+      name: originalName,
       type: ext,
       size: file.size || 0,
       url,
+      converted: false,
     });
   })
 );

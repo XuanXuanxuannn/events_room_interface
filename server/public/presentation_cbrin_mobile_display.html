@@ -711,7 +711,7 @@
           </div>
           <div id="uploadedFileList" class="upload-list page-upload-list" style="margin-top:10px;"></div>
           <div class="upload-note">
-            PDF files will open in the presentation viewer. PPTX files will be read by a simple built-in text slide reader. Legacy .ppt files can be uploaded but need a backend converter for true slide preview.
+            PDF files open in the presentation viewer. PowerPoint (.ppt / .pptx) is converted to PDF on the server during upload (LibreOffice required on the room PC). Limit: 100 MB.
           </div>
         </div>
       </div>
@@ -1182,13 +1182,13 @@
       if (el) el.classList.remove('show');
     }
 
-    function showToast(text) {
+    function showToast(text, durationMs = 2200) {
       const toast = document.getElementById('toast');
       if (!toast) return;
       toast.textContent = text;
       toast.style.display = 'block';
       clearTimeout(showToast.timer);
-      showToast.timer = setTimeout(() => toast.style.display = 'none', 2200);
+      showToast.timer = setTimeout(() => toast.style.display = 'none', durationMs);
     }
 
     function escapeHtml(value) {
@@ -1197,14 +1197,36 @@
 
     async function uploadPresentationToBackend(item) {
       if (!item || item.serverUrl || !item.file) return item;
+      const needsConvert = item.type === 'ppt' || item.type === 'pptx';
+      if (needsConvert) showToast('Uploading and converting to PDF…', 60000);
       const formData = new FormData();
       formData.append('file', item.file, item.name);
       const res = await fetch(BACKEND_UPLOAD_ENDPOINT, { method: 'POST', body: formData });
-      if (!res.ok) throw new Error(await res.text());
-      const saved = await res.json();
+      const raw = await res.text();
+      let saved = {};
+      try { saved = raw ? JSON.parse(raw) : {}; } catch (_e) { saved = { error: raw || 'Upload failed' }; }
+      if (!res.ok) {
+        const parts = [saved.error || raw || 'Upload failed'];
+        if (saved.hint) parts.push(saved.hint);
+        throw new Error(parts.join(' — '));
+      }
       item.serverUrl = saved.url;
       item.remoteUrl = saved.url;
       item.remoteId = saved.id;
+      if (saved.type) item.type = String(saved.type).toLowerCase();
+      if (saved.name) item.name = saved.name;
+      if (Number.isFinite(Number(saved.size))) item.size = Number(saved.size);
+      if (saved.url) item.url = saved.url;
+      if (saved.converted) {
+        item.convertedUrl = saved.url;
+        item.convertedId = saved.id;
+        item.sourceId = saved.sourceId || null;
+        item.parseStatus = 'ready';
+        item.slides = null;
+        showToast('Converted to PDF and ready to present', 3200);
+      } else if (needsConvert) {
+        showToast('Upload complete', 2200);
+      }
       return item;
     }
 
@@ -1623,28 +1645,26 @@
           url: URL.createObjectURL(file),
           size: file.size,
           slides: null,
-          parseStatus: type === 'pptx' ? 'pending' : 'ready'
+          parseStatus: type === 'pdf' ? 'ready' : 'pending'
         };
         uploadedPresentations.push(item);
         selectedPresentationId = item.id;
-        uploadPresentationToBackend(item).then(() => renderUploadedFiles()).catch(err => {
+        uploadPresentationToBackend(item).then(() => {
+          // Server converts PPT/PPTX to PDF on upload; treat as PDF-ready.
+          if (item.type === 'pdf') {
+            item.parseStatus = 'ready';
+            item.slides = null;
+          }
+          renderUploadedFiles();
+        }).catch(err => {
           console.warn('Backend upload failed:', err);
-          showError('uploadError', 'Upload was added locally, but it could not be shared to the display computer: ' + err.message);
+          item.parseStatus = 'failed';
+          renderUploadedFiles();
+          showError('uploadError', 'Upload failed: ' + (err.message || 'server error. For PowerPoint, install LibreOffice on the room PC.'));
         });
-        if (type === 'pptx') {
-          parsePptxSlides(item).then(() => renderUploadedFiles()).catch(() => {
-            item.parseStatus = 'failed';
-            renderUploadedFiles();
-          });
-        }
       }
       renderUploadedFiles();
       showToast(validFiles.length + ' file(s) added');
-
-      // Backend hook for later database/file storage support:
-      // const formData = new FormData();
-      // validFiles.forEach(file => formData.append('files', file));
-      // await fetch(BACKEND_UPLOAD_ENDPOINT, { method: 'POST', body: formData });
     }
 
     function formatBytes(bytes) {
