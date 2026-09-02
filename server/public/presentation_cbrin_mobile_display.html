@@ -351,7 +351,49 @@
     .pptx-slide h2{font-size:clamp(36px,6vw,82px);margin:0 0 28px;color:#fff;line-height:1.12;max-width:1180px}
     .pptx-slide .pptx-lines{max-width:1120px;color:#f3f0ff;font-size:clamp(20px,2.2vw,36px);line-height:1.55;white-space:pre-wrap}
     .pptx-note{font-size:18px;color:#f3f0ff;line-height:1.8;max-width:860px;margin:0 auto}
-    .presentation-controls{position:absolute;inset:0;z-index:15;pointer-events:none}
+    .presentation-controls{position:absolute;inset:0;z-index:40;pointer-events:none}
+    .presenter-control-bar{display:none;}
+    body.controller-role .demo-shell.presentation-active .presenter-control-bar{
+      display:flex !important;
+      position:fixed;
+      left:50%;
+      bottom:calc(env(safe-area-inset-bottom, 0px) + 16px);
+      transform:translateX(-50%);
+      z-index:2147483001;
+      gap:10px;
+      padding:10px;
+      border-radius:18px;
+      background:rgba(12,8,36,.82);
+      border:1px solid rgba(255,255,255,.2);
+      backdrop-filter:blur(12px);
+      box-shadow:0 16px 40px rgba(0,0,0,.35);
+      pointer-events:auto;
+      max-width:calc(100vw - 16px);
+    }
+    body.controller-role .demo-shell.presentation-active .presenter-control-bar button{
+      min-height:46px;
+      min-width:92px;
+      padding:10px 14px;
+      border:none;
+      border-radius:14px;
+      font-weight:900;
+      cursor:pointer;
+      color:#fff;
+    }
+    body.controller-role .demo-shell.presentation-active .presenter-control-bar .presenter-nav-btn{
+      background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    }
+    body.controller-role .demo-shell.presentation-active .presenter-control-bar .presenter-nav-btn:disabled{
+      opacity:.4;
+      cursor:default;
+    }
+    body.controller-role .demo-shell.presentation-active .presenter-control-bar .presenter-disconnect-btn{
+      background:linear-gradient(135deg,#d94b67,#c73654);
+    }
+    body.display-role .presenter-control-bar{display:none !important;}
+    body.controller-role .demo-shell.presentation-active .mobile-file-button-row{
+      bottom:calc(env(safe-area-inset-bottom, 0px) + 82px) !important;
+    }
     .nav-btn,.zoom-btn{
       pointer-events:auto;position:absolute;border:none;border-radius:999px;cursor:pointer;color:#fff;font-weight:900;
       background:rgba(0,0,0,.58);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(8px);
@@ -479,15 +521,8 @@
     body.display-role.embedded-display .demo-shell.presentation-active .top-exit{
       display:none !important;
     }
-    /* Controller always keeps a clear Exit while presenting. */
-    body.controller-role .demo-shell.presentation-active .top-exit{
-      display:block !important;
-      position:fixed !important;
-      left:14px !important;
-      top:14px !important;
-      z-index:1000003 !important;
-      pointer-events:auto !important;
-    }
+    body.display-role.embedded-display .catalog-toggle{display:none!important}
+
     body.display-role .demo-shell.presentation-active,
     body.display-role .demo-shell.presentation-active .page-stage,
     body.display-role .demo-shell.presentation-active .slide-card,
@@ -561,7 +596,7 @@
       position:fixed !important;
       left:50% !important;
       right:auto !important;
-      bottom:calc(env(safe-area-inset-bottom, 0px) + 20px) !important;
+      bottom:calc(env(safe-area-inset-bottom, 0px) + 82px) !important;
       top:auto !important;
       transform:translateX(-50%) !important;
       z-index:2147483000 !important;
@@ -582,7 +617,57 @@
       pointer-events:auto !important;
     }
     @supports (bottom: constant(safe-area-inset-bottom)){
-      body.controller-role .demo-shell.presentation-active .mobile-file-button-row{bottom:calc(constant(safe-area-inset-bottom) + 20px) !important;}
+      body.controller-role .demo-shell.presentation-active .mobile-file-button-row{bottom:calc(constant(safe-area-inset-bottom) + 82px) !important;}
+    }
+
+    /* Selected front-end refinements: consistent sizing, responsive controls and slide catalogue. */
+    .primary-btn,.secondary-btn,.mini-btn,.mobile-file-switch-btn{
+      min-height:46px;padding:12px 16px;border-radius:14px;line-height:1.25;
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    }
+    .top-exit{position:absolute!important;left:auto!important;right:16px!important;top:12px!important;min-height:44px;padding:10px 16px!important}
+    .catalog-toggle{
+      position:absolute;left:16px;top:12px;z-index:34;min-height:44px;padding:10px 16px;border:1px solid rgba(255,255,255,.26);
+      border-radius:14px;background:rgba(0,0,0,.62);color:#fff;font-weight:900;cursor:pointer;backdrop-filter:blur(10px);
+    }
+    body.display-role .catalog-toggle{display:none!important}
+    .catalog-backdrop{position:fixed;inset:0;z-index:39;background:rgba(0,0,0,.45);display:none}
+    .catalog-backdrop.show{display:block}
+    .catalog-drawer{
+      position:fixed;left:0;top:0;bottom:0;z-index:40;width:min(380px,88vw);padding:18px;
+      background:rgba(19,13,55,.96);border-right:1px solid rgba(255,255,255,.18);box-shadow:24px 0 70px rgba(0,0,0,.42);
+      transform:translateX(-102%);transition:transform .22s ease;display:flex;flex-direction:column;gap:14px;backdrop-filter:blur(18px);
+    }
+    .catalog-drawer.open{transform:translateX(0)}
+    .catalog-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .catalog-header h2{margin:0;font-size:22px}.catalog-close{width:42px;height:42px;border-radius:13px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:22px;cursor:pointer}
+    .catalog-list{min-height:0;overflow-y:auto;overscroll-behavior:contain;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:2px 4px 18px 2px;touch-action:pan-y}
+    .catalog-item{border:2px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(255,255,255,.055);padding:8px;color:#fff;cursor:pointer;text-align:left;min-width:0}
+    .catalog-item:hover{border-color:rgba(255,255,255,.42)}.catalog-item.current{border-color:#e854be;box-shadow:0 0 0 3px rgba(232,84,190,.2)}
+    .catalog-thumb{aspect-ratio:16/10;border-radius:9px;background:#09061f;display:grid;place-items:center;overflow:hidden;color:#d8d1ff;font-size:12px;text-align:center;padding:7px}
+    .catalog-thumb canvas{width:100%;height:100%;object-fit:contain;background:#fff}.catalog-thumb-title{font-weight:800;font-size:11px;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+    .catalog-page{display:block;margin-top:7px;font-weight:900;font-size:12px;text-align:center}
+    .nav-btn.boundary-hidden{display:none!important}
+    .start-gate{position:fixed;inset:0;z-index:1000000;display:none;place-items:center;padding:24px;background:rgba(7,4,25,.92);backdrop-filter:blur(12px)}
+    .start-gate.show{display:grid}.start-gate-card{width:min(570px,100%);padding:30px;border-radius:28px;text-align:center;background:linear-gradient(180deg,rgba(54,38,125,.98),rgba(28,18,78,.98));border:1px solid rgba(255,255,255,.2);box-shadow:0 30px 100px rgba(0,0,0,.48)}
+    .start-gate-card h2{margin:0 0 12px;font-size:30px}.start-gate-card p{margin:0;color:#d8d1ff;line-height:1.7}.start-gate-actions{margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}.start-gate-actions button{min-height:50px;border-radius:15px;padding:12px 18px;font-weight:900;cursor:pointer}
+    #displayFullscreenBtn{border:0;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff}.gate-cancel{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06);color:#fff}
+    .presentation-list-section{margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.13)}
+    .presentation-list-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .presentation-list-title{color:#f6f1ff;font-size:13px;font-weight:900;letter-spacing:.04em}
+    .stored-presentation-list-section{margin-top:22px}
+    .presentation-list-section .page-upload-list{margin-top:10px}
+    @media (max-width:900px){
+      #choicePage.active .split-layout{grid-template-columns:1fr!important}
+      #choicePage.active .split-pane{width:100%!important}
+      .actions,.link-row,.upload-actions-inline{display:grid!important;grid-template-columns:1fr;width:100%}
+      .actions button,.link-row button,.upload-actions-inline button{width:100%}
+      .catalog-drawer{width:min(360px,92vw)}
+    }
+    @media (max-width:640px){
+      .catalog-toggle,.top-exit{top:calc(env(safe-area-inset-top,0px) + 8px)!important;font-size:13px;padding:9px 12px!important;min-height:40px}
+      .catalog-toggle{left:8px}.top-exit{right:8px!important}.catalog-list{grid-template-columns:1fr 1fr;gap:9px}
+      .nav-left,.nav-right{width:42px;height:70px}.mobile-file-button-row{max-width:calc(100vw - 16px)!important}.mobile-file-switch-btn{min-width:104px!important;font-size:12px}
     }
 
   </style>
@@ -631,6 +716,7 @@
       document.documentElement.style.overflow = 'auto';
       if (window.matchMedia('(max-width: 900px)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) document.body.classList.add('controller-mobile');
       if (window.renderUploadedFiles) window.renderUploadedFiles();
+      if (window.loadStoredPresentations) window.loadStoredPresentations();
       return false;
     };
     window.__continueFromCode = window.forceContinueToChoice;
@@ -742,13 +828,14 @@
 
   <section id="demoPage" class="page">
     <div class="demo-shell">
-      <button class="top-exit" onclick="exitFlow()">End Presentation</button>
+      <button id="catalogToggleBtn" class="catalog-toggle" type="button" onclick="toggleCatalog(true)">Directory</button>
+      <button class="top-exit" onclick="disconnectControllerSession()">Disconnect</button>
 
       <div class="tutorial-mask" id="tutorialMask" onclick="closeTutorial()">
         <div class="tutorial-card">
           <div class="tutorial-title">Quick Guide</div>
           <div class="tutorial-board">
-            <div class="tutorial-exit">Exit</div>
+            <div class="tutorial-exit" style="left:auto;right:18px">Exit (top right)</div>
             <div class="tutorial-left">
               <div class="tutorial-big">Previous</div>
               <div class="tutorial-small">Use the left button, Left Arrow, or swipe left/right on mobile.</div>
@@ -763,10 +850,15 @@
       </div>
 
       <div class="presentation-controls" id="presentationControls">
-        <button class="nav-btn nav-left" onclick="prevDemoPage()" aria-label="Previous page">‹</button>
-        <button class="nav-btn nav-right" onclick="nextDemoPage()" aria-label="Next page">›</button>
+        <button id="pagePrevBtn" class="nav-btn nav-left" onclick="prevDemoPage()" aria-label="Previous page">‹</button>
+        <button id="pageNextBtn" class="nav-btn nav-right" onclick="nextDemoPage()" aria-label="Next page">›</button>
         <button class="nav-btn nav-up" onclick="switchPresentationFile(-1)" aria-label="Previous uploaded file">↑ File</button>
         <button class="nav-btn nav-down" onclick="switchPresentationFile(1)" aria-label="Next uploaded file">↓ File</button>
+        <div class="presenter-control-bar" id="presenterControlBar" aria-label="Presenter controls">
+          <button type="button" class="presenter-nav-btn" id="presenterPrevBtn" onclick="prevDemoPage()">Previous</button>
+          <button type="button" class="presenter-nav-btn" id="presenterNextBtn" onclick="nextDemoPage()">Next</button>
+          <button type="button" class="presenter-disconnect-btn" onclick="disconnectControllerSession()">Disconnect</button>
+        </div>
         <div class="mobile-file-button-row" aria-label="Mobile file switch controls">
           <button class="mobile-file-switch-btn" onclick="switchPresentationFile(-1)" aria-label="Previous uploaded file">↑ Prev File</button>
           <button class="mobile-file-switch-btn" onclick="switchPresentationFile(1)" aria-label="Next uploaded file">↓ Next File</button>
@@ -786,34 +878,11 @@
           </div>
         </div>
       </div>
-    </div>
-  </section>
-
-  <section id="confirmPage" class="page">
-    <div class="confirm-shell">
-      <button class="top-exit" onclick="exitFlow()">Exit</button>
-
-      <div class="tap-layer">
-        <div class="tap-zone" onclick="backFromConfirm()"></div>
-        <div class="tap-zone" onclick="exitFlow()"></div>
-      </div>
-
-      <div class="confirm-stage">
-        <div class="confirm-card">
-          <div class="confirm-side">
-            <div>
-              <h2>Not finish yet</h2>
-              <p>Tap the left half to jump back to the last slide.</p>
-            </div>
-          </div>
-          <div class="confirm-side">
-            <div>
-              <h2>Exit</h2>
-              <p>Tap the right half to wrap things up.</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div id="catalogBackdrop" class="catalog-backdrop" onclick="toggleCatalog(false)"></div>
+      <aside id="catalogDrawer" class="catalog-drawer" aria-label="Slide directory" aria-hidden="true">
+        <div class="catalog-header"><h2>Slide directory</h2><button class="catalog-close" type="button" onclick="toggleCatalog(false)" aria-label="Close directory">×</button></div>
+        <div id="catalogList" class="catalog-list"></div>
+      </aside>
     </div>
   </section>
 
@@ -836,11 +905,6 @@
         <div class="screen-share-status">Screen sharing is active. Use Exit to stop sharing and return to the upload / sharing page.</div>
       </div>
     </div>
-  </section>
-
-  <section id="remoteScreenShareOverlay" class="screen-share-overlay hidden" style="position:fixed;inset:0;z-index:999990;background:#000;display:none;align-items:center;justify-content:center;">
-    <video id="remoteScreenShareVideo" style="width:100%;height:100%;object-fit:contain;background:#000;" autoplay playsinline></video>
-    <div style="position:absolute;left:20px;bottom:18px;color:#fff;background:rgba(0,0,0,.45);padding:8px 12px;border-radius:999px;font-size:13px;" id="remoteScreenShareStatus">Waiting for screen share...</div>
   </section>
 
   <section id="goodbyePage" class="page">
@@ -872,6 +936,21 @@
 
   <div id="sessionErrorScreen" class="session-error-screen"><div class="session-error-card"><h2>Connection error</h2><p id="sessionErrorText">Another device is already connected.</p></div></div>
   <div id="fullscreenHint" class="fullscreen-hint"><div class="fullscreen-hint-card"><h2>Click to enter presentation mode</h2><p>Browsers do not allow true fullscreen unless the display computer receives a direct click or key press. Click here, or press F11 on the display computer.</p></div></div>
+  <section id="remoteScreenShareOverlay" class="screen-share-overlay hidden" style="position:fixed;inset:0;z-index:999990;background:#000;display:none;align-items:center;justify-content:center;">
+    <video id="remoteScreenShareVideo" style="width:100%;height:100%;object-fit:contain;background:#000;" autoplay playsinline></video>
+    <div style="position:absolute;left:20px;bottom:18px;color:#fff;background:rgba(0,0,0,.45);padding:8px 12px;border-radius:999px;font-size:13px;" id="remoteScreenShareStatus">Waiting for screen share...</div>
+  </section>
+
+  <div id="startGate" class="start-gate">
+    <div class="start-gate-card">
+      <h2 id="startGateTitle">Waiting for the display computer</h2>
+      <p id="startGateText">The presentation will begin after the display computer enters fullscreen.</p>
+      <div class="start-gate-actions">
+        <button id="displayFullscreenBtn" type="button" onclick="confirmDisplayFullscreen()">Enter fullscreen and start</button>
+        <button id="startGateCancelBtn" class="gate-cancel" type="button" onclick="cancelPendingStart()">Cancel</button>
+      </div>
+    </div>
+  </div>
 
   <div id="toast" class="toast">Done</div>
 
@@ -881,7 +960,6 @@
       code: document.getElementById('codePage'),
       choice: document.getElementById('choicePage'),
       demo: document.getElementById('demoPage'),
-      confirm: document.getElementById('confirmPage'),
       countdown: document.getElementById('countdownPage'),
       share: document.getElementById('sharePage'),
       goodbye: document.getElementById('goodbyePage')
@@ -898,13 +976,23 @@
     const BACKEND_COMMAND_ENDPOINT = '/api/presentation-command';
     const BACKEND_EVENTS_ENDPOINT = '/api/presentation-events';
     const BACKEND_PRESENCE_ENDPOINT = '/api/presentation-presence';
+    const BACKEND_STATE_ENDPOINT = '/api/presentation-state';
     const params = new URLSearchParams(location.search);
     const ROOM_ID = (params.get('room') || '12345678').replace(/\s/g, '') || '12345678';
     const PRESENTATION_ROLE = (location.pathname === '/display' || params.get('role') === 'display') ? 'display' : 'controller';
     const DISPLAY_WAITING_MODE = PRESENTATION_ROLE === 'display' && params.get('waiting') === '1';
+    const DISPLAY_PREPARED_MODE = PRESENTATION_ROLE === 'display' && params.get('prepared') === '1';
+    const PREPARED_REQUEST_ID = params.get('requestId') || '';
     const IS_EMBEDDED_DISPLAY = PRESENTATION_ROLE === 'display' && (() => {
       try { return window.self !== window.top; } catch (_e) { return true; }
     })();
+    const SCREEN_SHARE_API_BASE = window.SCREEN_SHARE_API_BASE || window.location.origin;
+    let SCREEN_SHARE_ROOM_ID = (params.get('screen_room') || params.get('screenRoom') || ROOM_ID || '').replace(/\s/g, '');
+    const SCREEN_SHARE_RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    let screenShareSocket = null;
+    let screenSharePeerConnection = null;
+    let pendingScreenShareIceCandidates = [];
+    let screenShareActive = false;
     const CLIENT_STORAGE_KEY = 'cbrin-client-id-' + PRESENTATION_ROLE + '-' + ROOM_ID;
     const DISCONNECTED_STORAGE_KEY = 'cbrin-disconnected-' + PRESENTATION_ROLE + '-' + ROOM_ID;
     const CLIENT_ID = (() => {
@@ -921,14 +1009,6 @@
     const IS_TOUCH_TABLET = (navigator.maxTouchPoints || 0) > 1 && /Macintosh/i.test(navigator.userAgent);
     const IS_MOBILE_VIEW = PRESENTATION_ROLE === 'controller' && (window.matchMedia('(max-width: 1180px)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || IS_TOUCH_TABLET);
     const BACKEND_CONVERT_ENDPOINT = '/api/convert-presentation';
-    const SCREEN_SHARE_API_BASE = window.SCREEN_SHARE_API_BASE || window.location.origin;
-    // Prefer explicit screen_room; otherwise use the presentation room so Share Screen works without Admin setup.
-    let SCREEN_SHARE_ROOM_ID = (params.get('screen_room') || params.get('screenRoom') || ROOM_ID || '').replace(/\s/g, '');
-    const SCREEN_SHARE_RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-    let screenShareSocket = null;
-    let screenSharePeerConnection = null;
-    let pendingScreenShareIceCandidates = [];
-    let screenShareActive = false;
     let demoIndex = 1;
     let countdownTimer = null;
     let uploadedPresentations = [];
@@ -939,6 +1019,8 @@
     let pptxPage = 1;
     let pdfDoc = null;
     let pdfRenderTask = null;
+    let pdfLoadGeneration = 0;
+    let pdfRenderGeneration = 0;
     let pdfJsLoadingPromise = null;
     let presentationZoom = 1;
     let presentationPanX = 0;
@@ -965,7 +1047,14 @@
     let touchStartPanY = 0;
     let touchStartEdge = null;
     let presenceTimer = null;
+    let waitingReplayTimer = null;
     let sessionReady = false;
+    let pendingControllerStart = null;
+    let queuedRemoteStart = null;
+    let activePrepareRequestId = PREPARED_REQUEST_ID;
+    let displayReadySent = false;
+    let fullscreenFallbackArmed = false;
+    let catalogObserver = null;
     document.body.classList.add(PRESENTATION_ROLE + '-role');
     if (IS_EMBEDDED_DISPLAY) document.body.classList.add('embedded-display');
     if (IS_MOBILE_VIEW) document.body.classList.add('controller-mobile');
@@ -1018,7 +1107,6 @@
           hideSessionOverlay();
           await startPresenceGuard();
           showPage('choice');
-          loadStoredPresentations();
         });
       }
     }
@@ -1049,13 +1137,7 @@
         sessionReady = true;
         updateControllerDisconnectVisibility();
         if (presenceTimer) clearInterval(presenceTimer);
-        presenceTimer = setInterval(() => {
-          if (!sessionReady) return;
-          sendPresence('heartbeat').catch((err) => {
-            // Don't trap the user on Exit / leave races; only show hard errors while still in-session.
-            if (sessionReady) showSessionError(err.message);
-          });
-        }, 5000);
+        presenceTimer = setInterval(() => sendPresence('heartbeat').catch(err => showSessionError(err.message)), 5000);
         window.addEventListener('beforeunload', () => {
           try {
             const payload = JSON.stringify({ room: ROOM_ID, role: PRESENTATION_ROLE, clientId: CLIENT_ID, action: 'leave' });
@@ -1064,10 +1146,8 @@
         }, { once:true });
         return true;
       } catch (err) {
-        // Embedded admin preview should still mirror slides even if the exclusive display slot is taken.
-        if (DISPLAY_WAITING_MODE || IS_EMBEDDED_DISPLAY) {
-          console.warn('Display presence unavailable; continuing as mirror:', err.message);
-          hideSessionOverlay();
+        if (IS_EMBEDDED_DISPLAY || DISPLAY_WAITING_MODE) {
+          console.warn('Embedded display presence:', err.message);
           return false;
         }
         showSessionError(err.message);
@@ -1076,7 +1156,7 @@
     }
 
     function showFullscreenHint() {
-      if (PRESENTATION_ROLE !== 'display' || IS_EMBEDDED_DISPLAY) return;
+      if (PRESENTATION_ROLE !== 'display') return;
       const hint = document.getElementById('fullscreenHint');
       if (!hint || document.fullscreenElement) return;
       hint.classList.add('show');
@@ -1126,10 +1206,9 @@
       const btn = document.getElementById('controllerDisconnectBtn');
       if (!btn) return;
       const key = activeKey || (pages.choice && pages.choice.classList.contains('active') ? 'choice' : (pages.demo && pages.demo.classList.contains('active') ? 'demo' : ''));
-      // Choice page: Disconnect from room. Demo page uses the End Presentation button instead.
-      const show = key === 'choice' && sessionReady;
-      btn.classList.toggle('show', show);
-      btn.style.display = show ? 'block' : 'none';
+      // Choice page uses the floating Disconnect. Live view uses the presenter control bar.
+      btn.classList.toggle('show', key === 'choice' && sessionReady);
+      btn.style.display = (key === 'choice' && sessionReady) ? 'block' : 'none';
     }
     function showPage(key) {
       Object.values(pages).forEach(p => {
@@ -1182,23 +1261,63 @@
       if (el) el.classList.remove('show');
     }
 
-    function showToast(text, durationMs = 2200) {
+    function showToast(text, durationMs) {
       const toast = document.getElementById('toast');
       if (!toast) return;
       toast.textContent = text;
       toast.style.display = 'block';
       clearTimeout(showToast.timer);
-      showToast.timer = setTimeout(() => toast.style.display = 'none', durationMs);
+      showToast.timer = setTimeout(() => toast.style.display = 'none', Number(durationMs) > 0 ? Number(durationMs) : 2200);
     }
 
     function escapeHtml(value) {
       return String(value || '').replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
     }
 
+    function toPdfFileName(name) {
+      const base = String(name || 'presentation').replace(/\.(pdf|ppt|pptx)$/i, '').trim() || 'presentation';
+      return base + '.pdf';
+    }
+
+    function applyConvertedPdfResult(item, saved = {}) {
+      if (!item) return item;
+      item.sourceName = saved.sourceName || item.sourceName || item.name;
+      item.type = 'pdf';
+      item.name = saved.name || toPdfFileName(item.sourceName);
+      item.url = saved.url || item.url;
+      item.serverUrl = saved.url || item.serverUrl;
+      item.remoteUrl = saved.url || item.remoteUrl;
+      item.remoteId = saved.id || item.remoteId;
+      item.convertedUrl = saved.url || item.convertedUrl || item.serverUrl;
+      item.convertedId = saved.id || item.convertedId;
+      item.parseStatus = 'ready';
+      item.slides = null;
+      if (saved.id && selectedPresentationId === item.id) selectedPresentationId = saved.id;
+      if (saved.id) item.id = saved.id;
+      return item;
+    }
+
+    function normalizePresentationItem(item) {
+      if (!item) return item;
+      const url = String(item.convertedUrl || item.serverUrl || item.remoteUrl || item.url || '');
+      const looksPdf = item.type === 'pdf' || item.convertedUrl || /\.pdf(\?|$)/i.test(url) || /\/converted\//i.test(url);
+      if (looksPdf) {
+        item.type = 'pdf';
+        if (/\.(ppt|pptx)$/i.test(item.name || '')) {
+          item.sourceName = item.sourceName || item.name;
+          item.name = toPdfFileName(item.name);
+        }
+      }
+      return item;
+    }
+
     async function uploadPresentationToBackend(item) {
       if (!item || item.serverUrl || !item.file) return item;
       const needsConvert = item.type === 'ppt' || item.type === 'pptx';
-      if (needsConvert) showToast('Uploading and converting to PDF…', 60000);
+      if (needsConvert) {
+        item.parseStatus = 'converting';
+        showToast('Uploading and converting to PDF…', 60000);
+      }
       const formData = new FormData();
       formData.append('file', item.file, item.name);
       const res = await fetch(BACKEND_UPLOAD_ENDPOINT, { method: 'POST', body: formData });
@@ -1213,17 +1332,15 @@
       item.serverUrl = saved.url;
       item.remoteUrl = saved.url;
       item.remoteId = saved.id;
-      if (saved.type) item.type = String(saved.type).toLowerCase();
-      if (saved.name) item.name = saved.name;
+      if (saved.sourceName) item.sourceName = saved.sourceName;
       if (Number.isFinite(Number(saved.size))) item.size = Number(saved.size);
       if (saved.url) item.url = saved.url;
-      if (saved.converted) {
-        item.convertedUrl = saved.url;
-        item.convertedId = saved.id;
-        item.sourceId = saved.sourceId || null;
-        item.parseStatus = 'ready';
-        item.slides = null;
-        showToast('Converted to PDF and ready to present', 3200);
+      if (saved.converted || String(saved.type || '').toLowerCase() === 'pdf') {
+        applyConvertedPdfResult(item, saved);
+        if (saved.converted) showToast('Converted to PDF and ready to present', 3200);
+      } else if (saved.type) {
+        item.type = String(saved.type).toLowerCase();
+        if (saved.name) item.name = saved.name;
       } else if (needsConvert) {
         showToast('Upload complete', 2200);
       }
@@ -1244,6 +1361,89 @@
       return seq;
     }
 
+    function setStartGate(mode, message = '') {
+      const gate = document.getElementById('startGate');
+      const title = document.getElementById('startGateTitle');
+      const text = document.getElementById('startGateText');
+      const fullscreenBtn = document.getElementById('displayFullscreenBtn');
+      const cancelBtn = document.getElementById('startGateCancelBtn');
+      if (!gate) return;
+      fullscreenFallbackArmed = false;
+      if (mode === 'display') {
+        if (title) title.textContent = 'Display computer is ready';
+        if (text) text.textContent = message || 'Enter fullscreen on this computer. The controller will start only after this step is confirmed.';
+        if (fullscreenBtn) { fullscreenBtn.classList.remove('hidden'); fullscreenBtn.textContent = 'Enter fullscreen and start'; }
+        if (cancelBtn) cancelBtn.textContent = 'Close display';
+      } else {
+        if (title) title.textContent = 'Waiting for the display computer';
+        if (text) text.textContent = message || 'The presentation will begin after the display computer enters fullscreen and confirms it is ready.';
+        if (fullscreenBtn) fullscreenBtn.classList.add('hidden');
+        if (cancelBtn) cancelBtn.textContent = 'Cancel';
+      }
+      gate.classList.add('show');
+    }
+
+    function hideStartGate() {
+      const gate = document.getElementById('startGate');
+      if (gate) gate.classList.remove('show');
+    }
+
+    async function confirmDisplayFullscreen() {
+      if (PRESENTATION_ROLE !== 'display') return;
+      const btn = document.getElementById('displayFullscreenBtn');
+      const title = document.getElementById('startGateTitle');
+      const text = document.getElementById('startGateText');
+      if (!fullscreenFallbackArmed && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+        try {
+          await document.documentElement.requestFullscreen({ navigationUI:'hide' });
+        } catch (err) {
+          fullscreenFallbackArmed = true;
+          if (title) title.textContent = 'Use the browser fullscreen fallback';
+          if (text) text.textContent = 'The browser blocked automatic fullscreen. Press F11 now, then click the confirmation button below.';
+          if (btn) btn.textContent = 'I pressed F11 — continue';
+          return;
+        }
+      } else if (!document.fullscreenElement && !document.documentElement.requestFullscreen && !fullscreenFallbackArmed) {
+        fullscreenFallbackArmed = true;
+        if (title) title.textContent = 'Use the browser fullscreen fallback';
+        if (text) text.textContent = 'Press F11 now, then click the confirmation button below.';
+        if (btn) btn.textContent = 'I pressed F11 — continue';
+        return;
+      }
+      displayReadySent = true;
+      hideStartGate();
+      if (!sessionReady) {
+        const ok = await startPresenceGuard();
+        if (!ok) return;
+      }
+      await sendPresentationCommand('display-ready', { requestId: activePrepareRequestId || PREPARED_REQUEST_ID });
+      if (queuedRemoteStart) {
+        const queued = queuedRemoteStart;
+        queuedRemoteStart = null;
+        await beginPresentationFile(queued, true);
+      } else {
+        showWaitingForController();
+      }
+    }
+
+    async function completePendingControllerStart(requestId) {
+      const pending = pendingControllerStart;
+      if (!pending || (pending.requestId && requestId && pending.requestId !== requestId)) return;
+      pendingControllerStart = null;
+      hideStartGate();
+      const seq = ++localCommandSeq + Date.now() * 1000;
+      lastRemoteStartSeq = seq;
+      await sendPresentationCommand('start', { presentation: pending.remotePayload, seq, requestId: pending.requestId });
+      await beginPresentationFile(pending.selected, true);
+    }
+
+    function cancelPendingStart() {
+      pendingControllerStart = null;
+      queuedRemoteStart = null;
+      hideStartGate();
+      if (PRESENTATION_ROLE === 'display') closeDisplayWindowOrReturnAdmin();
+    }
+
     function getCurrentPresentationPage() {
       if (!currentPresentation) return 1;
       return currentPresentation.type === 'pdf' ? pdfPage : pptxPage;
@@ -1261,6 +1461,8 @@
         pptxPage = Math.min(max, next);
         renderPresentationCanvas(currentPresentation);
       }
+      updateNavigationControls();
+      updateCatalogCurrent();
     }
 
     function getCurrentPresentationId() {
@@ -1337,6 +1539,10 @@
     function resetPresentationViewerState() {
       stopActiveScreenShare();
       clearInterval(countdownTimer);
+      pendingControllerStart = null;
+      queuedRemoteStart = null;
+      hideStartGate();
+      toggleCatalog(false);
       currentPresentation = null;
       pdfDoc = null;
       pdfPage = 1;
@@ -1357,8 +1563,20 @@
     }
 
     function closeDisplayWindowOrReturnAdmin() {
-      // Keep the display on the waiting page so Exit does not fight a new popup for the same room slot.
-      returnDisplayToWaiting();
+      stopActiveScreenShare();
+      if (IS_EMBEDDED_DISPLAY || DISPLAY_WAITING_MODE) {
+        returnDisplayToWaiting();
+        return;
+      }
+      releasePresenceSlot().finally(() => {
+        try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch(e) {}
+        setTimeout(() => {
+          try { window.close(); } catch(e) {}
+          setTimeout(() => {
+            if (!window.closed) location.href = '/admin';
+          }, 180);
+        }, 60);
+      });
     }
 
     async function convertPresentationOnBackend(selected) {
@@ -1388,37 +1606,74 @@
         throw new Error(err.error || 'Conversion failed');
       }
       const converted = await res.json();
-      selected.convertedUrl = converted.url;
-      selected.convertedId = converted.id;
       selected.originalType = selected.type;
-      selected.type = 'pdf';
-      selected.url = converted.url;
-      selected.serverUrl = converted.url;
-      selected.remoteUrl = converted.url;
-      selected.remoteId = converted.id;
-      selected.parseStatus = 'ready';
+      applyConvertedPdfResult(selected, converted);
       return selected;
     }
 
     async function buildRemotePayload(selected) {
       if (!selected.serverUrl && selected.file) await uploadPresentationToBackend(selected);
       if ((selected.type === 'ppt' || selected.type === 'pptx') && !selected.convertedUrl) {
-        try {
-          showToast('Converting PowerPoint to PDF...');
-          await convertPresentationOnBackend(selected);
-        } catch (err) {
-          console.warn('Conversion unavailable, falling back to simple viewer:', err);
-        }
+        showToast('Converting PowerPoint to PDF…', 60000);
+        await convertPresentationOnBackend(selected);
       }
+      normalizePresentationItem(selected);
       return {
         id: selected.remoteId || selected.id,
         name: selected.name,
-        type: selected.type,
+        type: selected.type === 'ppt' || selected.type === 'pptx' ? 'pdf' : selected.type,
         size: selected.size,
-        url: selected.serverUrl || selected.url,
+        url: selected.convertedUrl || selected.serverUrl || selected.url,
         slides: selected.slides || null,
         parseStatus: selected.parseStatus || 'ready'
       };
+    }
+
+    async function applyIncomingStart(presentation, seq) {
+      if (!presentation) return false;
+      const incomingId = presentation.id || presentation.remoteId || null;
+      const alreadyShowing = currentPresentation && incomingId && getCurrentPresentationId() === incomingId && pages.demo && pages.demo.classList.contains('active') && !isWaitingScreenVisible();
+      if (alreadyShowing) {
+        if (seq) lastRemoteStartSeq = Math.max(lastRemoteStartSeq, Number(seq) || lastRemoteStartSeq);
+        return true;
+      }
+      if (seq && lastRemoteStartSeq && seq <= lastRemoteStartSeq && currentPresentation && !isWaitingScreenVisible()) return false;
+      if (PRESENTATION_ROLE === 'display' && !sessionReady) {
+        await startPresenceGuard().catch(() => false);
+      }
+      hideSessionOverlay();
+      hideStartGate();
+      lastRemoteStartSeq = seq || Date.now();
+      const remote = normalizePresentationItem({
+        ...presentation,
+        file: null,
+        url: presentation.url || presentation.remoteUrl || presentation.serverUrl
+      });
+      if (PRESENTATION_ROLE === 'display') requestPresentationFullscreen(false);
+      await beginPresentationFile(remote, true);
+      return true;
+    }
+
+    async function replayActivePresentation() {
+      if (PRESENTATION_ROLE !== 'display') return;
+      if (currentPresentation && !isWaitingScreenVisible()) return;
+      try {
+        const res = await fetch(BACKEND_STATE_ENDPOINT + '?room=' + encodeURIComponent(ROOM_ID), { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (data && data.active && data.presentation) {
+          await applyIncomingStart(data.presentation, data.seq);
+        }
+      } catch (err) {
+        console.warn('Could not replay presentation state:', err);
+      }
+    }
+
+    function startWaitingReplay() {
+      if (PRESENTATION_ROLE !== 'display' || waitingReplayTimer) return;
+      waitingReplayTimer = setInterval(() => {
+        if (currentPresentation && !isWaitingScreenVisible()) return;
+        replayActivePresentation();
+      }, 1500);
     }
 
     function requestPresentationFullscreen(fromUser = false) {
@@ -1441,6 +1696,13 @@
         let msg;
         try { msg = JSON.parse(event.data || '{}'); } catch (e) { return; }
         if (!msg || !msg.command) return;
+        if (msg.command === 'prepare-start' && PRESENTATION_ROLE === 'display') {
+          return;
+        }
+        if (msg.command === 'display-ready' && PRESENTATION_ROLE === 'controller') {
+          if (pendingControllerStart) await completePendingControllerStart(String(msg.requestId || ''));
+          return;
+        }
         if (msg.command === 'presence' && PRESENTATION_ROLE === 'controller' && msg.role === 'display' && msg.status === 'joined' && currentPresentation) {
           buildRemotePayload(currentPresentation).then(remotePayload => {
             sendPresentationCommand('start', { presentation: remotePayload }).then(seq => {
@@ -1451,25 +1713,7 @@
         }
         if (msg.command === 'start' && msg.presentation) {
           if (msg.clientId && msg.clientId === CLIENT_ID) return;
-          const seq = Number(msg.seq || msg.at || 0);
-          const incomingId = msg.presentation.id || msg.presentation.remoteId || msg.presentationId || null;
-          if (seq && seq <= lastRemoteStartSeq) return;
-          if (currentPresentation && incomingId && getCurrentPresentationId() === incomingId && pages.demo && pages.demo.classList.contains('active')) {
-            if (seq) lastRemoteStartSeq = Math.max(lastRemoteStartSeq, seq);
-            return;
-          }
-          if (PRESENTATION_ROLE === 'display') {
-            hideSessionOverlay();
-            // After Exit we release the display slot; reclaim it when a new presentation starts.
-            // For the admin iframe (waiting mode), still show content even if presence is contested.
-            if (!sessionReady) {
-              const ok = await startPresenceGuard();
-              if (!ok && !DISPLAY_WAITING_MODE && !IS_EMBEDDED_DISPLAY) return;
-            }
-          }
-          lastRemoteStartSeq = seq || Date.now();
-          const remote = { ...msg.presentation, file: null, url: msg.presentation.url || msg.presentation.remoteUrl || msg.presentation.serverUrl };
-          await beginPresentationFile(remote, true);
+          await applyIncomingStart(msg.presentation, Number(msg.seq || msg.at || 0));
           return;
         }
         if (msg.command === 'switch-file-request' && PRESENTATION_ROLE === 'controller' && currentPresentation) {
@@ -1506,7 +1750,8 @@
         if (msg.command === 'exit') {
           if (PRESENTATION_ROLE === 'display') {
             stopDisplayScreenShareReceiver('exit');
-            returnDisplayToWaiting();
+            if (IS_EMBEDDED_DISPLAY || DISPLAY_WAITING_MODE) returnDisplayToWaiting();
+            else closeDisplayWindowOrReturnAdmin();
           } else if (currentPresentation || screenShareActive) {
             exitFlow(false);
           }
@@ -1515,7 +1760,13 @@
       source.onerror = () => console.warn('Presentation event connection lost or reconnecting...');
     }
 
+    function isWaitingScreenVisible() {
+      const canvas = document.getElementById('presentationCanvas');
+      return !!(canvas && /Waiting for presenter/i.test(canvas.textContent || ''));
+    }
+
     function showWaitingForController() {
+      if (currentPresentation) return;
       const shell = document.querySelector('#demoPage .demo-shell');
       if (shell) shell.classList.remove('presentation-active');
       const tutorial = document.getElementById('tutorialMask');
@@ -1545,8 +1796,8 @@
     function mapStoredPresentationFile(file) {
       const type = String(file.type || '').toLowerCase();
       return {
-        id: file.id,
-        name: file.name,
+        id: String(file.id || file.url || file.name),
+        name: file.name || 'Stored presentation',
         type,
         size: file.size || 0,
         url: file.url,
@@ -1555,7 +1806,7 @@
         remoteId: file.id,
         file: null,
         slides: null,
-        parseStatus: type === 'pdf' ? 'ready' : (type === 'pptx' ? 'pending' : 'ready'),
+        parseStatus: 'ready',
         fromLibrary: true,
         uploadedAt: file.uploadedAt || null,
         status: file.status || 'uploaded'
@@ -1564,6 +1815,21 @@
 
     function presentationFileKey(item) {
       return String(item.remoteId || item.id || '') + '|' + String(item.serverUrl || item.remoteUrl || item.url || '');
+    }
+
+    function presentationTimeMs(item) {
+      const raw = item && item.uploadedAt;
+      if (raw) {
+        const value = String(raw);
+        const d = new Date(value.includes('T') ? value : value.replace(' ', 'T') + 'Z');
+        if (!Number.isNaN(d.getTime())) return d.getTime();
+      }
+      const fromId = parseInt(String((item && item.id) || ''), 10);
+      return Number.isFinite(fromId) ? fromId : 0;
+    }
+
+    function sortPresentationsByTime() {
+      uploadedPresentations.sort((a, b) => presentationTimeMs(b) - presentationTimeMs(a));
     }
 
     async function loadStoredPresentations() {
@@ -1576,35 +1842,30 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || 'Failed to load stored files');
         const files = Array.isArray(data.files) ? data.files : [];
-        const sessionOnly = uploadedPresentations.filter((item) => !item.fromLibrary);
+        const sessionOnly = uploadedPresentations.filter(item => !item.fromLibrary);
         const seen = new Set(sessionOnly.map(presentationFileKey));
         const libraryItems = [];
         for (const file of files) {
           const mapped = mapStoredPresentationFile(file);
           const key = presentationFileKey(mapped);
-          if (seen.has(key)) continue;
-          // Also skip if session upload already shares the same remote id or url.
-          const dup = sessionOnly.some((item) =>
+          const duplicate = seen.has(key) || sessionOnly.some(item =>
             (item.remoteId && item.remoteId === mapped.remoteId) ||
             ((item.serverUrl || item.url) && (item.serverUrl || item.url) === mapped.url)
           );
-          if (dup) continue;
+          if (duplicate) continue;
           seen.add(key);
           libraryItems.push(mapped);
         }
         uploadedPresentations = sessionOnly.concat(libraryItems);
-        if (!selectedPresentationId && uploadedPresentations.length) {
-          selectedPresentationId = uploadedPresentations[0].id;
-        } else if (selectedPresentationId && !uploadedPresentations.some((item) => item.id === selectedPresentationId)) {
-          selectedPresentationId = uploadedPresentations[0] ? uploadedPresentations[0].id : null;
+        sortPresentationsByTime();
+        if (selectedPresentationId && !uploadedPresentations.some(item => item.id === selectedPresentationId)) {
+          selectedPresentationId = sessionOnly[0]?.id || libraryItems[0]?.id || null;
         }
         renderUploadedFiles();
       } catch (err) {
         console.warn('Could not load stored presentation files:', err);
+        uploadedPresentations = uploadedPresentations.filter(item => !item.fromLibrary);
         renderUploadedFiles();
-        if (!uploadedPresentations.length && list) {
-          list.innerHTML = '<div class="selected-label">Could not load stored files. You can still upload a new file.</div>';
-        }
       }
     }
 
@@ -1645,12 +1906,12 @@
           url: URL.createObjectURL(file),
           size: file.size,
           slides: null,
-          parseStatus: type === 'pdf' ? 'ready' : 'pending'
+          parseStatus: type === 'pdf' ? 'ready' : 'converting',
+          uploadedAt: new Date().toISOString()
         };
-        uploadedPresentations.push(item);
+        uploadedPresentations.unshift(item);
         selectedPresentationId = item.id;
         uploadPresentationToBackend(item).then(() => {
-          // Server converts PPT/PPTX to PDF on upload; treat as PDF-ready.
           if (item.type === 'pdf') {
             item.parseStatus = 'ready';
             item.slides = null;
@@ -1691,6 +1952,7 @@
       const list = document.getElementById('uploadedFileList');
       const label = document.getElementById('selectedFileLabel');
       if (!list) return;
+      sortPresentationsByTime();
       if (!uploadedPresentations.length) {
         list.innerHTML = '<div class="selected-label">No files yet. Upload a PDF / PowerPoint, or refresh after files are stored on the server.</div>';
         if (label) label.textContent = 'No file selected yet.';
@@ -1699,28 +1961,26 @@
         return;
       }
       list.innerHTML = uploadedPresentations.map(item => {
+        normalizePresentationItem(item);
         const selected = item.id === selectedPresentationId;
         let status = String(item.type || '').toUpperCase();
-        if (item.fromLibrary) status += ' · stored';
-        if (item.type === 'pptx') {
-          if (item.parseStatus === 'pending' && item.file) status = 'PPTX · reading slides...';
-          else if (item.parseStatus === 'ready' && item.slides) status = 'PPTX · ' + ((item.slides || []).length || 1) + ' text slide(s)';
-          else if (item.fromLibrary) status = 'PPTX · stored · converts to PDF when started';
-          else status = 'PPTX · simple reader failed, backend converter needed';
+        if (item.parseStatus === 'converting') status = (item.sourceName || item.type || 'PPT').toUpperCase().replace(/\.PDF$/,'') + ' · converting to PDF...';
+        else if (item.parseStatus === 'failed') status = (item.type || 'FILE').toUpperCase() + ' · conversion failed';
+        else if (item.convertedUrl || (item.type === 'pdf' && item.sourceName)) status = 'PDF · converted from PowerPoint';
+        else if (item.fromLibrary) status += ' · stored';
+        if (item.serverUrl && !item.fromLibrary && item.parseStatus !== 'converting') status += ' · ready';
+        if (item.uploadedAt) {
+          const uploadedDate = new Date(String(item.uploadedAt).includes('T') ? item.uploadedAt : String(item.uploadedAt).replace(' ', 'T') + 'Z');
+          if (!Number.isNaN(uploadedDate.getTime())) status += ' · ' + uploadedDate.toLocaleString();
         }
-        if (item.type === 'ppt') status = item.fromLibrary ? 'PPT · stored · converts to PDF when started' : 'PPT · backend converter needed for preview';
-        if (item.serverUrl && !item.fromLibrary) status += ' · shared';
-        if (item.uploadedAt && item.fromLibrary) {
-          const d = new Date(String(item.uploadedAt).includes('T') ? item.uploadedAt : String(item.uploadedAt).replace(' ', 'T') + 'Z');
-          if (!Number.isNaN(d.getTime())) status += ' · ' + d.toLocaleString();
-        }
+        const encodedId = JSON.stringify(String(item.id));
         return `
-          <div class="file-card ${selected ? 'selected' : ''}" onclick='selectPresentation(${JSON.stringify(String(item.id))})'>
+          <div class="file-card ${selected ? 'selected' : ''}" onclick='selectPresentation(${encodedId})'>
             <div>
               <div class="file-name">${escapeHtml(item.name)}</div>
               <div class="file-meta">${status} · ${formatBytes(item.size)}</div>
             </div>
-            <button class="mini-btn" onclick='event.stopPropagation(); selectPresentation(${JSON.stringify(String(item.id))})'>${selected ? 'Selected' : 'Select'}</button>
+            <button class="mini-btn" onclick='event.stopPropagation(); selectPresentation(${encodedId})'>${selected ? 'Selected' : 'Select'}</button>
           </div>`;
       }).join('');
       const selectedItem = uploadedPresentations.find(item => item.id === selectedPresentationId);
@@ -1744,18 +2004,19 @@
       const ok = window.confirm('Start presenting "' + selected.name + '"?');
       if (!ok) return;
       if (PRESENTATION_ROLE === 'controller' && IS_MOBILE_VIEW) {
-        // Try to enter mobile fullscreen while this is still close to the user's tap.
-        // Some mobile browsers may still refuse it, but this is the best web-safe attempt.
         requestPresentationFullscreen(true);
       }
+      hideStartGate();
+      pendingControllerStart = null;
       let remotePayload;
       try {
         if (!selected.serverUrl && selected.file) showToast('Uploading file for display...');
         remotePayload = await buildRemotePayload(selected);
       } catch (err) {
-        showError('uploadError', 'Cannot start on display because the file could not upload to the local server: ' + err.message);
+        showError('uploadError', 'Cannot start: ' + (err.message || 'upload or PowerPoint conversion failed. Install LibreOffice on the room PC.'));
         return;
       }
+      normalizePresentationItem(selected);
       const seq = ++localCommandSeq + Date.now() * 1000;
       lastRemoteStartSeq = seq;
       await sendPresentationCommand('start', { presentation: remotePayload, seq });
@@ -1763,9 +2024,15 @@
     }
 
     async function beginPresentationFile(selected, resetPage = true) {
+      selected = normalizePresentationItem(selected);
+      const oldPdfDoc = pdfDoc;
+      pdfLoadGeneration += 1;
+      pdfRenderGeneration += 1;
+      if (pdfRenderTask) { try { pdfRenderTask.cancel(); } catch (e) {} pdfRenderTask = null; }
       currentPresentation = selected;
       selectedPresentationId = selected.id;
       pdfDoc = null;
+      if (oldPdfDoc && oldPdfDoc.destroy) oldPdfDoc.destroy().catch(() => {});
       if (resetPage) {
         pdfPage = 1;
         pptxPage = 1;
@@ -1777,15 +2044,14 @@
         showToast('Reading PPTX slides...');
         await parsePptxSlides(selected).catch(() => null);
       }
-      if (PRESENTATION_ROLE === 'display') requestPresentationFullscreen();
       const shell = document.querySelector('#demoPage .demo-shell');
       if (shell) shell.classList.add('presentation-active');
       const tutorial = document.getElementById('tutorialMask');
       if (tutorial) tutorial.classList.add('hidden');
       showPage('demo');
       renderPresentationCanvas(selected);
-      if (PRESENTATION_ROLE === 'display') setTimeout(() => requestPresentationFullscreen(), 120);
-      if (PRESENTATION_ROLE === 'controller' && IS_MOBILE_VIEW) setTimeout(() => requestPresentationFullscreen(true), 80);
+      renderCatalog();
+      updateNavigationControls();
       const toastKey = (selected.remoteId || selected.id || selected.name || '') + ':' + (pdfPage || pptxPage || 1);
       if (window.__lastStartedToastKey !== toastKey || Date.now() - (window.__lastStartedToastAt || 0) > 2000) {
         window.__lastStartedToastKey = toastKey;
@@ -1871,7 +2137,8 @@
               <div id="pdfFallback" class="viewer-message hidden"></div>
             </div>
           </div>`;
-        loadAndRenderPdf(item);
+        loadAndRenderPdf(item, pdfLoadGeneration);
+        updateNavigationControls();
         return;
       }
       if (item.type === 'pptx') {
@@ -1890,6 +2157,8 @@
               <div class="pptx-lines">${escapeHtml(slide.body || '')}</div>
             </div>
           </div>`;
+        updateNavigationControls();
+        updateCatalogCurrent();
         return;
       }
       canvas.innerHTML = `
@@ -1906,6 +2175,8 @@
             </div>
           </div>
         </div>`;
+      updateNavigationControls();
+      updateCatalogCurrent();
     }
 
     async function ensurePdfJs() {
@@ -1926,32 +2197,47 @@
       return lib;
     }
 
-    async function loadAndRenderPdf(item) {
+    async function loadAndRenderPdf(item, generation = pdfLoadGeneration) {
       try {
         const lib = await ensurePdfJs();
-        pdfDoc = await lib.getDocument(item.url).promise;
+        if (generation !== pdfLoadGeneration || currentPresentation !== item) return;
+        const loadingTask = lib.getDocument(item.url);
+        const loadedDoc = await loadingTask.promise;
+        if (generation !== pdfLoadGeneration || currentPresentation !== item) {
+          if (loadedDoc && loadedDoc.destroy) loadedDoc.destroy().catch(() => {});
+          return;
+        }
+        pdfDoc = loadedDoc;
         if (pdfPage > pdfDoc.numPages) pdfPage = pdfDoc.numPages;
         if (pdfPage < 1) pdfPage = 1;
-        await renderPdfPage();
+        renderCatalog();
+        updateNavigationControls();
+        await renderPdfPage(generation);
       } catch (err) {
+        if (generation !== pdfLoadGeneration || currentPresentation !== item) return;
         console.warn('PDF.js failed, using browser PDF fallback:', err);
         const wrap = document.getElementById('pdfCanvasWrap');
         if (wrap) {
           wrap.innerHTML = `<iframe class="native-pdf-frame" src="${item.url}#page=${pdfPage}&zoom=page-fit&toolbar=0&navpanes=0&scrollbar=0" title="${escapeHtml(item.name)}"></iframe>`;
         }
         updateViewerStatus();
+        updateNavigationControls();
       }
     }
 
-    async function renderPdfPage() {
+    async function renderPdfPage(expectedLoadGeneration = pdfLoadGeneration) {
       if (!pdfDoc || !currentPresentation || currentPresentation.type !== 'pdf') return;
+      const currentDoc = pdfDoc;
+      const currentItem = currentPresentation;
+      const renderGeneration = ++pdfRenderGeneration;
       const canvas = document.getElementById('pdfCanvas');
       const wrap = document.getElementById('pdfCanvasWrap');
       if (!canvas || !wrap) return;
       if (pdfRenderTask) {
         try { pdfRenderTask.cancel(); } catch (e) {}
       }
-      const page = await pdfDoc.getPage(pdfPage);
+      const page = await currentDoc.getPage(pdfPage);
+      if (renderGeneration !== pdfRenderGeneration || expectedLoadGeneration !== pdfLoadGeneration || pdfDoc !== currentDoc || currentPresentation !== currentItem) return;
       const baseViewport = page.getViewport({ scale: 1 });
       const availableW = Math.max(260, wrap.clientWidth - 24);
       const availableH = Math.max(260, wrap.clientHeight - 24);
@@ -1965,11 +2251,15 @@
       canvas.style.height = Math.floor(viewport.height) + 'px';
       canvas.style.transform = `translate(${presentationPanX}px, ${presentationPanY}px)`;
       const ctx = canvas.getContext('2d');
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       updateViewerStatus();
+      updateNavigationControls();
+      updateCatalogCurrent();
       pdfRenderTask = page.render({ canvasContext: ctx, viewport });
       try { await pdfRenderTask.promise; } catch (err) { if (err && err.name !== 'RenderingCancelledException') console.warn(err); }
-      pdfRenderTask = null;
+      if (renderGeneration === pdfRenderGeneration) pdfRenderTask = null;
     }
 
     function updateViewerStatus() {
@@ -1984,6 +2274,123 @@
       }
     }
 
+    function getPresentationPageCount() {
+      if (!currentPresentation) return 5;
+      if (currentPresentation.type === 'pdf') return pdfDoc ? pdfDoc.numPages : 1;
+      if (currentPresentation.type === 'pptx') return currentPresentation.slides && currentPresentation.slides.length ? currentPresentation.slides.length : 1;
+      return 1;
+    }
+
+    function updateNavigationControls() {
+      const previous = document.getElementById('pagePrevBtn');
+      const next = document.getElementById('pageNextBtn');
+      const barPrev = document.getElementById('presenterPrevBtn');
+      const barNext = document.getElementById('presenterNextBtn');
+      const page = currentPresentation ? getCurrentPresentationPage() : demoIndex;
+      const total = getPresentationPageCount();
+      if (previous) previous.classList.toggle('boundary-hidden', page <= 1);
+      if (next) next.classList.toggle('boundary-hidden', page >= total);
+      if (barPrev) barPrev.disabled = page <= 1;
+      if (barNext) barNext.disabled = page >= total;
+    }
+
+    function toggleCatalog(open) {
+      const drawer = document.getElementById('catalogDrawer');
+      const backdrop = document.getElementById('catalogBackdrop');
+      if (!drawer || !backdrop) return;
+      const shouldOpen = typeof open === 'boolean' ? open : !drawer.classList.contains('open');
+      drawer.classList.toggle('open', shouldOpen);
+      backdrop.classList.toggle('show', shouldOpen);
+      drawer.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
+      if (shouldOpen) updateCatalogCurrent();
+    }
+
+    function updateCatalogCurrent() {
+      const currentPage = currentPresentation ? getCurrentPresentationPage() : demoIndex;
+      document.querySelectorAll('#catalogList .catalog-item').forEach(item => {
+        item.classList.toggle('current', Number(item.dataset.page) === currentPage);
+      });
+    }
+
+    function renderCatalog() {
+      const list = document.getElementById('catalogList');
+      if (!list) return;
+      if (catalogObserver) { catalogObserver.disconnect(); catalogObserver = null; }
+      if (!currentPresentation) {
+        list.innerHTML = Array.from({ length:5 }, (_, i) => `<button class="catalog-item ${demoIndex === i + 1 ? 'current' : ''}" data-page="${i + 1}" onclick="jumpToCatalogPage(${i + 1})"><div class="catalog-thumb"><span class="catalog-thumb-title">Demo page ${i + 1}</span></div><span class="catalog-page">Page ${i + 1}</span></button>`).join('');
+        return;
+      }
+      if (currentPresentation.type === 'pdf' && !pdfDoc) {
+        list.innerHTML = '<div class="selected-label">Loading PDF pages and thumbnails...</div>';
+        return;
+      }
+      const total = getPresentationPageCount();
+      const currentPage = getCurrentPresentationPage();
+      list.innerHTML = Array.from({ length:total }, (_, index) => {
+        const page = index + 1;
+        let thumb;
+        if (currentPresentation.type === 'pdf') {
+          thumb = `<div class="catalog-thumb"><canvas data-pdf-thumb="${page}" aria-label="PDF page ${page} thumbnail"></canvas></div>`;
+        } else if (currentPresentation.type === 'pptx') {
+          const slide = (currentPresentation.slides || [])[index] || {};
+          thumb = `<div class="catalog-thumb"><span class="catalog-thumb-title">${escapeHtml(slide.title || ('Slide ' + page))}</span></div>`;
+        } else {
+          thumb = '<div class="catalog-thumb"><span class="catalog-thumb-title">PowerPoint preview</span></div>';
+        }
+        return `<button class="catalog-item ${currentPage === page ? 'current' : ''}" data-page="${page}" onclick="jumpToCatalogPage(${page})">${thumb}<span class="catalog-page">${currentPresentation.type === 'pdf' ? 'Page' : 'Slide'} ${page}</span></button>`;
+      }).join('');
+      if (currentPresentation.type === 'pdf' && 'IntersectionObserver' in window) {
+        const generation = pdfLoadGeneration;
+        const itemId = getCurrentPresentationId();
+        catalogObserver = new IntersectionObserver(entries => {
+          entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            catalogObserver.unobserve(entry.target);
+            renderPdfCatalogThumbnail(entry.target, Number(entry.target.dataset.pdfThumb), generation, itemId);
+          });
+        }, { root:list, rootMargin:'160px 0px' });
+        list.querySelectorAll('canvas[data-pdf-thumb]').forEach(canvas => catalogObserver.observe(canvas));
+      } else if (currentPresentation.type === 'pdf') {
+        const generation = pdfLoadGeneration;
+        const itemId = getCurrentPresentationId();
+        list.querySelectorAll('canvas[data-pdf-thumb]').forEach(canvas => renderPdfCatalogThumbnail(canvas, Number(canvas.dataset.pdfThumb), generation, itemId));
+      }
+    }
+
+    async function renderPdfCatalogThumbnail(canvas, pageNumber, generation, itemId) {
+      const doc = pdfDoc;
+      if (!canvas || !doc || generation !== pdfLoadGeneration || itemId !== getCurrentPresentationId()) return;
+      try {
+        const page = await doc.getPage(pageNumber);
+        if (generation !== pdfLoadGeneration || doc !== pdfDoc || itemId !== getCurrentPresentationId() || !canvas.isConnected) return;
+        const base = page.getViewport({ scale:1 });
+        const scale = Math.min(240 / base.width, 150 / base.height);
+        const viewport = page.getViewport({ scale });
+        const ratio = Math.min(2, window.devicePixelRatio || 1);
+        canvas.width = Math.max(1, Math.floor(viewport.width * ratio));
+        canvas.height = Math.max(1, Math.floor(viewport.height * ratio));
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(ratio,0,0,ratio,0,0);
+        await page.render({ canvasContext:ctx, viewport }).promise;
+      } catch (err) {
+        console.warn('Thumbnail render failed:', err);
+      }
+    }
+
+    function jumpToCatalogPage(page) {
+      if (!currentPresentation) {
+        demoIndex = Math.max(1, Math.min(5, Number(page) || 1));
+        updateSlide();
+      } else {
+        resetViewForPageChange();
+        setCurrentPresentationPage(page);
+        broadcastViewState();
+      }
+      updateNavigationControls();
+      updateCatalogCurrent();
+      toggleCatalog(false);
+    }
+
     function updateSlide() {
       if (currentPresentation) {
         renderPresentationCanvas(currentPresentation);
@@ -1992,6 +2399,8 @@
         const canvas = document.getElementById('presentationCanvas');
         if (canvas) canvas.innerHTML = '<div class="slide-big" id="slideText">PAGE ' + demoIndex + '</div><div class="slide-sub">Clean, high-contrast branded navigation.</div>';
       }
+      updateNavigationControls();
+      updateCatalogCurrent();
     }
 
     function resetViewForPageChange() {
@@ -2018,10 +2427,12 @@
           if (changed) resetViewForPageChange();
           renderPresentationCanvas(currentPresentation);
         }
+        updateNavigationControls();
+        updateCatalogCurrent();
         broadcastViewState();
         return;
       }
-      if (demoIndex < 5) { demoIndex += 1; updateSlide(); } else { showPage('confirm'); }
+      if (demoIndex < 5) { demoIndex += 1; updateSlide(); }
     }
 
     function prevDemoPage() {
@@ -2036,6 +2447,8 @@
           resetViewForPageChange();
           renderPresentationCanvas(currentPresentation);
         }
+        updateNavigationControls();
+        updateCatalogCurrent();
         broadcastViewState();
         return;
       }
@@ -2104,33 +2517,34 @@
       if (tutorial) tutorial.classList.add('hidden');
     }
 
-    function backFromConfirm() {
-      demoIndex = 5;
+    function exitFlow(notify = true) {
+      if (notify && PRESENTATION_ROLE === 'controller' && currentPresentation) sendPresentationCommand('exit');
+      if (PRESENTATION_ROLE === 'display') releasePresenceSlot();
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+      stopActiveScreenShare();
+      clearInterval(countdownTimer);
+      pendingControllerStart = null;
+      queuedRemoteStart = null;
+      hideStartGate();
+      toggleCatalog(false);
+      pdfLoadGeneration += 1;
+      pdfRenderGeneration += 1;
+      if (pdfRenderTask) { try { pdfRenderTask.cancel(); } catch (e) {} pdfRenderTask = null; }
+      const oldPdfDoc = pdfDoc;
+      currentPresentation = null;
+      pdfDoc = null;
+      if (oldPdfDoc && oldPdfDoc.destroy) oldPdfDoc.destroy().catch(() => {});
+      pdfPage = 1;
+      pptxPage = 1;
+      presentationZoom = 1;
+      presentationPanX = 0;
+      presentationPanY = 0;
+      const shell = document.querySelector('#demoPage .demo-shell');
+      if (shell) shell.classList.remove('presentation-active');
       updateSlide();
-      showPage('demo');
-    }
-
-    async function exitFlow(notify = true) {
-      hideSessionOverlay();
-
-      // Display: leave the room slot and return to the waiting screen (not the upload/choice page).
-      if (PRESENTATION_ROLE === 'display') {
-        if (notify) {
-          try { await sendPresentationCommand('exit'); } catch (e) {}
-        }
-        await returnDisplayToWaiting();
-        return;
-      }
-
-      // Controller: end the presentation for the display, then go back to upload / share choice.
-      if (notify && currentPresentation) {
-        try { await sendPresentationCommand('exit'); } catch (e) {}
-      }
-      resetPresentationViewerState();
-      updateSlide();
+      renderCatalog();
       renderUploadedFiles();
       showPage('choice');
-      updateControllerDisconnectVisibility('choice');
     }
 
     function getActiveScreenShareRoom() {
@@ -2518,7 +2932,6 @@
     window.startSelectedPresentation = startSelectedPresentation;
     window.selectPresentation = selectPresentation;
     window.loadStoredPresentations = loadStoredPresentations;
-    window.handlePresentationFiles = handlePresentationFiles;
     window.startScreenShare = startPrepareCountdown;
     window.startPrepareCountdown = startPrepareCountdown;
     window.exitFlow = exitFlow;
@@ -2527,18 +2940,6 @@
     window.switchPresentationFile = switchPresentationFile;
     window.switchPresentationFileFromKeyboard = switchPresentationFileFromKeyboard;
 
-
-    document.addEventListener('keydown', (event) => {
-      if (!pages.demo || !pages.demo.classList.contains('active')) return;
-      if (event.key === 'ArrowRight') { event.preventDefault(); nextDemoPage(); }
-      else if (event.key === 'ArrowLeft') { event.preventDefault(); prevDemoPage(); }
-      else if (event.key === 'ArrowDown') { event.preventDefault(); switchPresentationFileFromKeyboard(1); }
-      else if (event.key === 'ArrowUp') { event.preventDefault(); switchPresentationFileFromKeyboard(-1); }
-      else if (event.key === '+' || event.key === '=') { event.preventDefault(); zoomInPresentation(); }
-      else if (event.key === '-' || event.key === '_') { event.preventDefault(); zoomOutPresentation(); }
-      else if (event.key === '0') { event.preventDefault(); resetPresentationZoom(); }
-      else if (event.key === 'Escape') { event.preventDefault(); exitFlow(); }
-    });
 
     const demoPageEl = document.getElementById('demoPage');
     if (demoPageEl) {
@@ -2552,7 +2953,7 @@
       demoPageEl.addEventListener('mousedown', (event) => {
         if (!currentPresentation || !pages.demo || !pages.demo.classList.contains('active')) return;
         if (event.button !== 0) return;
-        if (event.target.closest('button,.top-exit,.presentation-toolbar,.zoom-controls')) return;
+        if (event.target.closest('button,.top-exit,.presentation-toolbar,.zoom-controls,.catalog-drawer,.catalog-toggle')) return;
         const pdfWrap = document.getElementById('pdfCanvasWrap');
         const pptSlide = document.querySelector('.pptx-slide');
         isViewerDragging = true;
@@ -2661,6 +3062,7 @@
       }
 
       demoPageEl.addEventListener('touchstart', (event) => {
+        if (event.target.closest('.catalog-drawer,.catalog-toggle,.top-exit,button')) return;
         if (!event.touches || !event.touches.length) return;
         if (event.touches.length >= 2 && currentPresentation) {
           touchWasPinching = true;
@@ -2679,6 +3081,7 @@
       }, { passive: true });
 
       demoPageEl.addEventListener('touchmove', (event) => {
+        if (event.target.closest('.catalog-drawer,.catalog-toggle,.top-exit,button')) return;
         if (!currentPresentation || !event.touches || !event.touches.length) return;
         if (event.touches.length >= 2 && pinchStartDistance) {
           event.preventDefault();
@@ -2698,6 +3101,7 @@
       }, { passive: false });
 
       demoPageEl.addEventListener('touchend', (event) => {
+        if (event.target.closest('.catalog-drawer,.catalog-toggle,.top-exit,button')) return;
         if (touchWasPinching) {
           if (!event.touches || event.touches.length < 2) {
             touchWasPinching = false;
@@ -2737,6 +3141,13 @@
       const tag = target && target.tagName ? target.tagName.toLowerCase() : '';
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || (target && target.isContentEditable)) return;
       if (event.altKey || event.ctrlKey || event.metaKey) return;
+      const catalog = document.getElementById('catalogDrawer');
+      if (event.key === 'Escape' && catalog && catalog.classList.contains('open')) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        toggleCatalog(false);
+        return;
+      }
       if (!pages.demo || !pages.demo.classList.contains('active') || !currentPresentation) return;
 
       let handled = true;
@@ -2758,7 +3169,6 @@
     }, true);
 
 
-    connectPresentationEvents();
     window.addEventListener('DOMContentLoaded', () => {
       ensureControllerDisconnectButton();
       if (PRESENTATION_ROLE === 'controller') {
@@ -2769,11 +3179,14 @@
           }
         } catch(e) {}
       }
+      if (PRESENTATION_ROLE === 'display') showWaitingForController();
+      connectPresentationEvents();
       // The pre-opened waiting display window must not occupy the single display slot.
       // It only joins the room when the controller actually starts presenting.
-      if (!(PRESENTATION_ROLE === 'display' && DISPLAY_WAITING_MODE)) startPresenceGuard();
+      if (!(PRESENTATION_ROLE === 'display' && (DISPLAY_WAITING_MODE || DISPLAY_PREPARED_MODE))) startPresenceGuard();
       if (PRESENTATION_ROLE === 'display') {
-        showWaitingForController();
+        startWaitingReplay();
+        replayActivePresentation();
       }
       else if (params.get('room')) {
         const input = document.getElementById('joinCode');
@@ -2790,13 +3203,9 @@
       }
     });
 
-    window.addEventListener('orientationchange', () => {
-      if (PRESENTATION_ROLE === 'controller' && IS_MOBILE_VIEW && currentPresentation && pages.demo && pages.demo.classList.contains('active')) {
-        setTimeout(() => requestPresentationFullscreen(true), 250);
-      }
-    });
-
     renderUploadedFiles();
+    renderCatalog();
+    updateNavigationControls();
   </script>
 </body>
 </html>

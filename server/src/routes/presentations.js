@@ -5,7 +5,7 @@ const { getDb } = require('../db');
 const { presentationUpload } = require('../middleware/upload');
 const { asyncHandler } = require('../middleware/errors');
 const { getValidSession, extractToken } = require('../middleware/auth');
-const { attachEvents, handleCommand } = require('../services/presentationSync');
+const { attachEvents, handleCommand, loadState } = require('../services/presentationSync');
 const { handlePresence } = require('../services/roomManager');
 const { convertPresentation } = require('../services/conversionService');
 
@@ -33,7 +33,7 @@ router.get(
          WHERE lower(file_type) IN ('pdf', 'ppt', 'pptx')
            AND converted_from_id IS NULL
            AND coalesce(status, '') NOT IN ('converting')
-         ORDER BY datetime(uploaded_at) DESC, id DESC`
+         ORDER BY datetime(replace(replace(uploaded_at, 'T', ' '), 'Z', '')) DESC, uploaded_at DESC, id DESC`
       )
       .all();
     res.json({ ok: true, files: rows.map(serializePresentationFile) });
@@ -46,6 +46,23 @@ router.get(
     const room = req.query.room || '12345678';
     // SSE takes over the response; do not call res.json
     attachEvents(res, room);
+  })
+);
+
+router.get(
+  '/presentation-state',
+  asyncHandler(async (req, res) => {
+    const room = req.query.room || '12345678';
+    const state = loadState(room);
+    res.json({
+      ok: true,
+      room,
+      active: !!(state && state.active && state.presentation),
+      seq: state && state.seq,
+      presentation: state && state.active ? state.presentation : null,
+      page: state && state.page,
+      zoom: state && state.zoom,
+    });
   })
 );
 

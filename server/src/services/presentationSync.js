@@ -128,6 +128,8 @@ function handleCommand(payload) {
     action: payload.action || null,
     fileIndex: Number.isFinite(Number(payload.fileIndex)) ? Number(payload.fileIndex) : null,
     screenRoom: payload.screenRoom || null,
+    requestId: payload.requestId || null,
+    presentationName: payload.presentationName || null,
     at: Date.now(),
   };
 

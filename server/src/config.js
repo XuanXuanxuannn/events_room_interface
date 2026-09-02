@@ -5,6 +5,21 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const ROOT = path.join(__dirname, '..');
 const DATA_DIR = path.resolve(process.env.DATA_DIR || path.join(ROOT, 'storage'));
 
+function resolveLibreOfficeBin() {
+  const configured = process.env.LIBREOFFICE_BIN;
+  const candidates = [
+    configured,
+    '/Applications/LibreOffice.app/Contents/MacOS/soffice',
+    '/opt/homebrew/bin/soffice',
+    '/usr/local/bin/soffice',
+    'soffice',
+  ].filter(Boolean);
+  for (const bin of candidates) {
+    if (bin.includes('/') && fs.existsSync(bin)) return bin;
+  }
+  return configured || 'soffice';
+}
+
 const config = {
   port: Number(process.env.PORT || 3000),
   host: process.env.HOST || '0.0.0.0',
@@ -24,7 +39,7 @@ const config = {
   presenceTtlMs: Number(process.env.PRESENCE_TTL_MS || 30000),
   roomExpireHours: Number(process.env.ROOM_EXPIRE_HOURS || 12),
   cleanupIntervalMs: Number(process.env.CLEANUP_INTERVAL_MS || 900000),
-  libreOfficeBin: process.env.LIBREOFFICE_BIN || 'soffice',
+  libreOfficeBin: resolveLibreOfficeBin(),
   sessionSecret: process.env.SESSION_SECRET || 'dev-only-change-me',
   enableHttps: String(process.env.ENABLE_HTTPS || '').toLowerCase() === 'true',
   httpsPort: Number(process.env.HTTPS_PORT || process.env.PORT || 3000),

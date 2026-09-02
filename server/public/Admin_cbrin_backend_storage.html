@@ -336,8 +336,27 @@
     }
 
 
-    .presentation-iframe-box{padding:0 !important; overflow:hidden !important; background:#000 !important; min-height:520px;}
+    .presentation-iframe-box{padding:0 !important; overflow:hidden !important; background:#000 !important; min-height:520px; display:block !important; align-items:stretch !important; text-align:left !important;}
     .presentation-iframe-box iframe{width:100%;height:100%;min-height:520px;border:0;display:block;background:#000;}
+
+    .admin-controller-overlay{
+      position:fixed;inset:0;z-index:95;display:none;background:transparent;pointer-events:none;
+    }
+    .admin-controller-overlay.show{display:block;}
+    .admin-controller-panel{
+      position:absolute;right:0;top:72px;bottom:0;width:min(560px,100%);
+      background:#170f49;border-left:1px solid rgba(255,255,255,.12);
+      box-shadow:-18px 0 40px rgba(0,0,0,.28);display:flex;flex-direction:column;
+      pointer-events:auto;
+    }
+    .admin-controller-bar{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+      padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.1);
+    }
+    .admin-controller-bar strong{font-size:14px;}
+    .admin-controller-panel iframe{flex:1;width:100%;border:0;background:#140c3f;min-height:0;}
+    #adminControlsBtn{display:none;}
+    #adminControlsBtn.show{display:block;}
 
     /* restore connection choices + keep the right admin sidebar from becoming an inner scroll area */
     .side-col, .side-col .card, .side-col .panel-body{overflow:visible !important; max-height:none !important;}
@@ -358,7 +377,7 @@
     .app-page.presentation-live-fullscreen .presentation-box{position:absolute;inset:0;border-radius:0;border:none;padding:0;background:#000;}
     .app-page.presentation-live-fullscreen .presentation-iframe-box iframe{width:100%;height:100%;border:0;background:#000;}
     .app-page.presentation-live-fullscreen .presentation-foot,.app-page.presentation-live-fullscreen .mode-top{display:none;}
-    .app-page.presentation-live-fullscreen .side-col{position:fixed;right:18px;top:18px;z-index:80;display:block;width:auto;}
+    .app-page.presentation-live-fullscreen .side-col{position:fixed;right:18px;top:18px;z-index:110;display:block;width:auto;}
     .app-page.presentation-live-fullscreen .side-col .card:not(:first-child){display:none;}
     .app-page.presentation-live-fullscreen .side-col .card{background:transparent;border:none;box-shadow:none;backdrop-filter:none;}
     .app-page.presentation-live-fullscreen .side-col .card-header{display:none;}
@@ -373,6 +392,60 @@
     /* cleaner connection mode: no extra background title behind the QR panel */
     .screen.connect-mode .mode-top{display:none !important;}
     .screen.connect-mode .connect-center{padding:22px !important;}
+
+
+    /* Front-end interaction polish: consistent controls, neutral idle overlays and clear upload targets. */
+    .btn,.login-btn,.secondary-btn,.danger-btn{
+      min-height:46px;padding:12px 18px;border-radius:14px;font-size:14px;line-height:1.25;
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    }
+    button:disabled{cursor:not-allowed;opacity:.46;filter:saturate(.25);transform:none!important;box-shadow:none!important}
+    .screen .idle-image-frame{opacity:1!important;filter:none!important}
+    .screensaver~.idle-overlay,.idle-overlay{background:transparent!important}
+    .screensaver .mode-top>div:first-child,.screensaver .ready-badge,.screensaver .glass{
+      color:#fff;background:rgba(70,70,78,.46);border:1px solid rgba(255,255,255,.36);
+      border-radius:20px;padding:14px 18px;box-shadow:0 16px 44px rgba(0,0,0,.22);
+      backdrop-filter:blur(14px) saturate(1.12);-webkit-backdrop-filter:blur(14px) saturate(1.12);
+      text-shadow:0 2px 8px rgba(0,0,0,.72);
+    }
+    .screensaver .mode-title{margin-top:7px}.screensaver .eyebrow{color:#fff}
+    .screensaver .screen-bottom>div:first-child{display:none!important}
+    .screensaver .screen-bottom{grid-template-columns:1fr;justify-items:end}
+    .screensaver .glass{width:min(430px,100%)}
+    .image-card,.add-card{border:2px solid rgba(255,255,255,.42)!important;box-shadow:0 0 0 1px rgba(0,0,0,.2) inset}
+    .add-card{border-style:dashed!important;background:rgba(255,255,255,.075)!important}
+    #manualDisplayOpenBtn{display:none}
+    #manualDisplayOpenBtn.show{display:inline-flex}
+    .screen::after{display:none!important}
+    .qr-card{
+      width:min(375px,calc(100vw - 96px))!important;
+      height:auto!important;
+      aspect-ratio:1/1;
+      padding:14px!important;
+      border-radius:26px!important;
+    }
+    .qr-card img{border-radius:14px!important}
+    .screen.connect-mode{min-height:940px!important}
+    .screen.connect-mode .connect-center{
+      overflow:hidden!important;
+      place-items:center!important;
+      padding:54px 34px!important;
+    }
+    .screen.connect-mode .connect-box{
+      width:min(780px,100%)!important;
+      max-height:none!important;
+      overflow:visible!important;
+      padding:30px 32px!important;
+    }
+    @media (max-width:760px){
+      .screen.connect-mode{min-height:900px!important}
+      .screen.connect-mode .connect-center{padding:36px 18px!important}
+      .screen.connect-mode .connect-box{padding:24px 18px!important}
+      .connect-actions,.modal-actions{display:grid;grid-template-columns:1fr;width:100%}
+      .connect-actions .btn,.connect-actions .secondary-btn,.modal-actions .btn,.modal-actions .secondary-btn{width:100%}
+      .setting-row{align-items:stretch}.setting-row .field,.setting-row input{width:100%!important}
+      .screen-bottom{left:14px;right:14px}.screensaver .glass{width:100%}
+    }
 
   </style>
 </head>
@@ -405,10 +478,6 @@
             <h1 class="title">Events Room Admin</h1>
             <p class="subtitle">CBRIN-styled connection flow with branded idle slides, gradients and presentation states.</p>
           </div>
-          <div class="badges">
-            <div class="badge" id="modeBadge">Mode: idle</div>
-            <div class="badge" id="sourceBadge">Source: -</div>
-          </div>
         </div>
 
         <div class="screen" id="previewScreen">
@@ -421,7 +490,6 @@
                 <div class="eyebrow">Idle Mode</div>
                 <h2 class="mode-title" id="billboardTitle">Upcoming Event</h2>
               </div>
-              <div class="ready-badge">CBRIN Ready</div>
             </div>
 
             <div class="screen-bottom">
@@ -451,9 +519,8 @@
 
             <div class="connect-center">
               <div class="connect-box">
-                <div class="connect-big" id="connectVisual">📱</div>
                 <h3 class="connect-main" id="connectMain">Wireless presentation link is ready</h3>
-                <div class="connect-note" id="connectNote">Scan the QR code or open the URL on another computer / phone to enter the presentation page.</div>
+                <div class="connect-note" id="connectNote">Scan the QR code on a phone, or present from this computer. The slides stay on this Admin screen.</div>
                 <div class="connection-status-pill waiting" id="connectionStatusPill"><span class="connection-status-dot"></span><span id="connectionStatusText">Not connected yet</span></div>
                 <div class="code-badge" id="numericCode">1234 5678</div>
                 <div class="qr-panel">
@@ -462,9 +529,8 @@
                   <div class="connect-mini-note">Tip: keep this server running. The other device must use the same Wi-Fi / LAN as this computer.</div>
                 </div>
                 <div class="connect-actions">
-                  <button class="btn" onclick="openPresentationHere()">Open Presentation on This Computer</button>
+                  <button class="btn" onclick="openPresentationHere()">Present from this computer</button>
                   <button class="secondary-btn" onclick="copyPresentationLink()">Copy Link</button>
-                  <button class="secondary-btn" onclick="backToIdle()">Back to Idle</button>
                 </div>
               </div>
             </div>
@@ -483,7 +549,7 @@
             <div class="presentation-box presentation-iframe-box">
               <iframe id="adminDisplayFrame" title="Live presentation display" src="about:blank" allow="fullscreen; display-capture"></iframe>
             </div>
-            <div class="presentation-foot">Live presentation display. Start from the phone/controller after scanning the QR code.</div>
+            <div class="presentation-foot">Live presentation on this Admin screen. Start from the phone or from this computer.</div>
           </div>
         </div>
       </section>
@@ -494,6 +560,7 @@
           <div class="panel-body">
             <div class="button-grid">
               <button id="connectBtn" class="btn" onclick="handleConnectBtn()">Connect</button>
+              <button id="adminControlsBtn" class="secondary-btn" type="button" onclick="openPresentationHere()">Controls</button>
             </div>
             <div class="connection-status-box">
               <strong>Connection Status</strong>
@@ -508,7 +575,7 @@
             <button class="secondary-btn" type="button" onclick="loadUploadedFiles()" style="padding:10px 14px;">Refresh</button>
           </div>
           <div class="panel-body">
-            <div class="hint" style="margin-top:0;">Presentation uploads and converted PDFs. Screen sharing stays in the presentation room.</div>
+            <div class="hint" style="margin-top:0;">Presentation uploads and converted PDFs, newest first. Screen sharing stays in the presentation room.</div>
             <div id="uploadedFilesList" class="upload-files-list" style="margin-top:14px;display:grid;gap:10px;max-height:360px;overflow:auto;"></div>
           </div>
         </section>
@@ -527,6 +594,7 @@
             </div>
             <div class="modal-actions" style="justify-content:flex-start; margin-top:12px;">
               <button class="btn" onclick="saveIdleDuration()">Save Timing</button>
+              <button id="enterIdleBtn" class="secondary-btn" onclick="enterIdleMode()">Enter Standby</button>
             </div>
 
             <div class="item-box">
@@ -538,6 +606,16 @@
       </aside>
     </div>
   </section>
+
+  <div id="adminControllerOverlay" class="admin-controller-overlay" hidden>
+    <div class="admin-controller-panel">
+      <div class="admin-controller-bar">
+        <strong>Present from this computer</strong>
+        <button class="secondary-btn" type="button" onclick="closeAdminController()">Close</button>
+      </div>
+      <iframe id="adminControllerFrame" title="Presentation controller" src="about:blank" allow="fullscreen"></iframe>
+    </div>
+  </div>
 
   <div id="connectModal" class="modal-mask">
     <div class="modal small">
@@ -644,9 +722,25 @@
 
     function formatUploadedAt(value) {
       if (!value) return 'Unknown time';
-      const d = new Date(value.includes('T') ? value : value.replace(' ', 'T') + 'Z');
+      const d = new Date(uploadedAtMs(value) || value);
       if (Number.isNaN(d.getTime())) return String(value);
       return d.toLocaleString();
+    }
+
+    function uploadedAtMs(value) {
+      if (!value) return 0;
+      const raw = String(value);
+      const iso = raw.includes('T') ? raw : raw.replace(' ', 'T') + (/Z|[+-]\d{2}:?\d{2}$/.test(raw) ? '' : 'Z');
+      const d = new Date(iso);
+      return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+    }
+
+    function sortUploadedFilesNewestFirst() {
+      uploadedFiles.sort((a, b) => {
+        const diff = uploadedAtMs(b && b.uploadedAt) - uploadedAtMs(a && a.uploadedAt);
+        if (diff !== 0) return diff;
+        return String((b && b.id) || '').localeCompare(String((a && a.id) || ''));
+      });
     }
 
     function formatBytes(bytes) {
@@ -659,6 +753,7 @@
     function renderUploadedFiles() {
       const list = document.getElementById('uploadedFilesList');
       if (!list) return;
+      sortUploadedFilesNewestFirst();
       if (!uploadedFiles.length) {
         list.innerHTML = '<div class="item-box"><div class="item-label">No uploaded presentation files yet.</div></div>';
         return;
@@ -737,6 +832,10 @@
     let currentMode = 'idle';
     let currentSource = '-';
     let connected = false;
+    let controllerConnected = false;
+    let idleReturnMode = 'idle';
+    let idleEnteredByUser = false;
+    let pendingDisplayRequestId = '';
     let idleDurationSeconds = 4;
     let idleTimer = null;
 
@@ -804,6 +903,76 @@
         .replace(/'/g, '&#039;');
     }
 
+
+    function setManualDisplayFallback(_show) {
+      // Display now stays in Admin. No popup fallback.
+    }
+
+    function openPreparedDisplayManually() {
+      showPresentationInAdmin();
+    }
+
+    function getAdminControllerUrl() {
+      return adminPageOrigin() + '/presentation?room=' + encodeURIComponent(roomCompact());
+    }
+
+    function updateAdminControlsBtn() {
+      const btn = document.getElementById('adminControlsBtn');
+      if (!btn) return;
+      btn.classList.toggle('show', !!(adminLocalController && currentMode === 'presentation'));
+    }
+
+    function closeAdminController(unload) {
+      const overlay = document.getElementById('adminControllerOverlay');
+      if (overlay) {
+        overlay.classList.remove('show');
+        overlay.hidden = true;
+      }
+      if (unload) {
+        adminLocalController = false;
+        const frame = document.getElementById('adminControllerFrame');
+        if (frame) {
+          frame.src = 'about:blank';
+          frame.removeAttribute('data-src');
+        }
+        updateAdminControlsBtn();
+      }
+    }
+
+    function updateIdleEntryAvailability() {
+      const btn = document.getElementById('enterIdleBtn');
+      if (!btn) return;
+      btn.disabled = controllerConnected;
+      btn.title = controllerConnected ? 'Standby is unavailable while a controller is connected.' : '';
+    }
+
+    async function enterIdleMode() {
+      if (controllerConnected) {
+        showToast('Standby is unavailable while a controller is connected.');
+        return;
+      }
+      idleReturnMode = currentMode === 'idle' ? (currentSource === 'Wireless' ? 'connect' : 'idle') : currentMode;
+      idleEnteredByUser = true;
+      showMode('idle');
+      if (previewScreen && previewScreen.requestFullscreen && !document.fullscreenElement) {
+        try { await previewScreen.requestFullscreen({ navigationUI:'hide' }); }
+        catch (err) { showToast('Fullscreen was blocked. You can still use standby in the page.'); }
+      }
+    }
+
+    function leaveIdleModeForController() {
+      idleEnteredByUser = false;
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+      showMode(idleReturnMode && idleReturnMode !== 'idle' ? idleReturnMode : 'connect');
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && idleEnteredByUser && currentMode === 'idle') {
+        idleEnteredByUser = false;
+        showMode(idleReturnMode || 'idle');
+      }
+    });
+
     function showMode(mode) {
       currentMode = mode;
       if (modeScreensaver) modeScreensaver.classList.remove('active');
@@ -821,8 +990,10 @@
       if (modeText) modeText.textContent = 'Mode: ' + (mode === 'idle' ? 'Screensaver / Billboard' : mode === 'connect' ? 'Connection Mode' : 'Presentation Mode');
       if (currentSourceText) currentSourceText.textContent = 'Source: ' + currentSource;
       updateConnectButton();
+      updateIdleEntryAvailability();
       if (mode === 'idle') restartIdleTimer();
       else clearInterval(idleTimer);
+      updateAdminControlsBtn();
     }
 
     function setAdminLiveFullscreen(on) {
@@ -872,6 +1043,7 @@
     let presentationDisplayWindow = null;
     let adminDisconnecting = false;
     let adminRoomSessionToken = 0;
+    let adminLocalController = false;
     function updateConnectionStatus(text, state = 'idle') {
       const side = document.getElementById('adminConnectionStatus');
       const inline = document.getElementById('connectionStatusText');
@@ -886,32 +1058,32 @@
       }
     }
     function setAdminDisplayFrame(url) {
-      // Remember optional LAN display URL for QR/phone use, but embed locally.
       if (url) presentationDisplayUrl = url;
       if (!presentationDisplayUrl) presentationDisplayUrl = getLocalAdminDisplayUrl();
       const frame = document.getElementById('adminDisplayFrame');
       if (!frame) return;
+      const room = roomCompact();
       const nextSrc = withDisplayWaitingParam(getLocalAdminDisplayUrl());
-      if (frame.getAttribute('src') === nextSrc) return;
+      if (frame.getAttribute('data-room') === room && frame.getAttribute('src') && frame.getAttribute('src') !== 'about:blank') {
+        return;
+      }
+      frame.setAttribute('data-room', room);
       frame.src = nextSrc;
     }
 
-    function openPresentationDisplayWindow(url) {
-      // Fullscreen on this computer should also stay same-origin as Admin.
-      const localUrl = getLocalAdminDisplayUrl();
-      presentationDisplayUrl = url || presentationDisplayUrl || localUrl;
-      try {
-        const features = `popup=yes,fullscreen=yes,width=${screen.availWidth || 1280},height=${screen.availHeight || 720},left=0,top=0`;
-        presentationDisplayWindow = window.open(localUrl, 'cbrin_presentation_display', features);
-        if (presentationDisplayWindow) {
-          presentationDisplayWindow.focus();
-        } else {
-          showToast('Display popup was blocked. Allow popups for this site, then start again.');
-        }
-      } catch (err) {
-        console.warn('Could not open display window:', err);
-        showToast('Display popup was blocked. Allow popups for this site, then start again.');
-      }
+    function showPresentationInAdmin() {
+      try { if (presentationDisplayWindow && !presentationDisplayWindow.closed) presentationDisplayWindow.close(); } catch (e) {}
+      presentationDisplayWindow = null;
+      setManualDisplayFallback(false);
+      setAdminDisplayFrame(presentationDisplayUrl || getLocalAdminDisplayUrl());
+      showMode('presentation');
+      setAdminLiveFullscreen(true);
+    }
+
+    function openPresentationDisplayWindow(url, requestId = '') {
+      presentationDisplayUrl = url || presentationDisplayUrl || getLocalAdminDisplayUrl();
+      showPresentationInAdmin();
+      return true;
     }
 
     function startAdminPresentationListener() {
@@ -920,13 +1092,31 @@
       const room = encodeURIComponent(roomCompact());
       adminPresentationEvents = new EventSource('/api/presentation-events?room=' + room);
       adminPresentationEvents.onmessage = (event) => {
-        if (localToken !== adminRoomSessionToken || currentMode === 'idle') return;
+        if (localToken !== adminRoomSessionToken) return;
         let msg;
         try { msg = JSON.parse(event.data || '{}'); } catch(e) { return; }
         if (msg.command === 'presence') {
-          if (msg.role === 'controller' && msg.status === 'joined') updateConnectionStatus('Controller connected. Waiting for Start Presentation.', 'connected');
-          if (msg.role === 'controller' && msg.status === 'left') updateConnectionStatus('Controller left. Link is still open; scan again or press Disconnect.', 'waiting');
+          if (msg.role === 'controller' && msg.status === 'joined') {
+            controllerConnected = true;
+            updateIdleEntryAvailability();
+            if (currentMode === 'idle') leaveIdleModeForController();
+            updateConnectionStatus('Controller connected. Waiting for Start Presentation.', 'connected');
+          }
+          if (msg.role === 'controller' && msg.status === 'left') {
+            controllerConnected = false;
+            updateIdleEntryAvailability();
+            updateConnectionStatus('Controller left. Link is still open; scan again or press Disconnect.', 'waiting');
+          }
           if (msg.role === 'display' && msg.status === 'joined') updateConnectionStatus('Display connected. Presentation is live.', 'live');
+        }
+        if (msg.command === 'prepare-start') {
+          pendingDisplayRequestId = String(msg.requestId || '');
+          updateConnectionStatus('Presentation selected. Showing on this Admin screen.', 'connected');
+          setAdminDisplayFrame(getLocalAdminDisplayUrl());
+        }
+        if (msg.command === 'display-ready') {
+          setManualDisplayFallback(false);
+          updateConnectionStatus('Display is ready. Presentation is live.', 'live');
         }
         if (msg.command === 'start') {
           adminDisconnecting = false;
@@ -934,34 +1124,32 @@
           if (presentationTitle) presentationTitle.textContent = 'Wireless presentation is live';
           if (presentationSource) presentationSource.textContent = 'Source: Wireless';
           if (presentationSourceBadge) presentationSourceBadge.textContent = 'Presentation Source: Wireless';
-          updateConnectionStatus('Presentation live. Use Disconnect (top right) to exit.', 'live');
-          // Switch to the presentation panel so the admin iframe mirror is visible.
-          const frame = document.getElementById('adminDisplayFrame');
-          if (!frame || !frame.getAttribute('src') || frame.getAttribute('src') === 'about:blank') {
-            setAdminDisplayFrame(presentationDisplayUrl || getFallbackPresentationDisplayUrl());
-          }
-          showMode('presentation');
-          setAdminLiveFullscreen(true);
-          if (presentationDisplayWindow && !presentationDisplayWindow.closed) {
-            try { presentationDisplayWindow.focus(); } catch(e) {}
-          }
+          updateConnectionStatus('Presentation live in Admin. Press Disconnect to end the room.', 'live');
+          showPresentationInAdmin();
           updateConnectButton();
         }
         if (msg.command === 'exit') {
           connected = false;
+          pendingDisplayRequestId = '';
           try { if (presentationDisplayWindow && !presentationDisplayWindow.closed) presentationDisplayWindow.close(); } catch(e) {}
           setAdminLiveFullscreen(false);
           const frame = document.getElementById('adminDisplayFrame');
           if (adminDisconnecting || msg.sender === 'server-clear') {
-            if (frame) frame.src = 'about:blank';
+            if (frame) {
+              frame.src = 'about:blank';
+              frame.removeAttribute('data-room');
+            }
+            closeAdminController(true);
             currentSource = '-';
             updateConnectionStatus('Disconnected. Click Connect to create a new room.', 'idle');
             updateConnectButton();
             showMode('idle');
             adminDisconnecting = false;
           } else {
-            // Keep the waiting display mirror ready for the next Start Presentation.
-            setAdminDisplayFrame(presentationDisplayUrl || getFallbackPresentationDisplayUrl());
+            if (frame) {
+              frame.src = 'about:blank';
+              frame.removeAttribute('data-room');
+            }
             updateConnectionStatus('Presentation ended. Connection link is still active; the controller can start again, or press Disconnect.', 'waiting');
             updateConnectButton();
             showMode('connect');
@@ -1138,16 +1326,19 @@
 
     async function startConnect(source) {
       connected = false;
+      controllerConnected = false;
+      pendingDisplayRequestId = '';
+      updateIdleEntryAvailability();
       adminDisconnecting = false;
       resetRoomCode();
       currentSource = source;
       const connectBox = document.querySelector('.connect-box');
       if (connectBox) connectBox.classList.toggle('hdmi-mode', source === 'HDMI');
       connectSourceBadge.textContent = 'Connection: ' + source;
-      connectVisual.textContent = source === 'Wireless' ? '📱' : source === 'Upload' ? 'UPLOAD' : 'HDMI';
+      if (connectVisual) connectVisual.textContent = source === 'Wireless' ? '' : source === 'Upload' ? 'UPLOAD' : 'HDMI';
       connectMain.textContent = source === 'Wireless' ? 'Wireless presentation link is ready' : source + ' connection is ready';
       connectNote.textContent = source === 'Wireless'
-        ? 'Scan the QR code or open the URL on another computer / phone. The display will enter presentation mode after the controller clicks Start Presentation.'
+        ? 'Scan the QR code on a phone, or use Present from this computer. Slides stay on this Admin screen — no new tab.'
         : source === 'Upload'
           ? 'Users can upload a file through the local presentation page.'
           : 'Plug the HDMI cable into the presenter device, then select this fallback path.';
@@ -1156,8 +1347,7 @@
         updatePresentationQr(getFallbackPresentationJoinUrl());
         presentationDisplayUrl = getFallbackPresentationDisplayUrl();
         await clearRoomPresence();
-        // Prefill the admin live preview with the waiting display for this room.
-        setAdminDisplayFrame(presentationDisplayUrl);
+        // Do not open the display window yet. It should appear only after the controller clicks Start Presentation.
         startAdminPresentationListener();
         updateConnectionStatus('Waiting for controller to scan the QR code.', 'waiting');
       } else {
@@ -1183,7 +1373,7 @@
         stopPresentation();
         return;
       }
-      openConnectModal();
+      startConnect('Wireless');
     }
 
     function openConnectModal() {
@@ -1204,10 +1394,24 @@
     }
 
     function openPresentationHere() {
-      // Open the room display fullscreen on this computer (same origin as Admin).
-      const frame = document.getElementById('adminDisplayFrame');
-      if (frame) frame.src = 'about:blank';
-      setTimeout(() => openPresentationDisplayWindow(getLocalAdminDisplayUrl()), 250);
+      if (!roomCompact()) {
+        showToast('Click Connect first to create a room.');
+        return;
+      }
+      adminLocalController = true;
+      const overlay = document.getElementById('adminControllerOverlay');
+      const frame = document.getElementById('adminControllerFrame');
+      const url = getAdminControllerUrl();
+      if (frame && frame.getAttribute('data-src') !== url) {
+        frame.setAttribute('data-src', url);
+        frame.src = url;
+      }
+      if (overlay) {
+        overlay.hidden = false;
+        overlay.classList.add('show');
+      }
+      setAdminDisplayFrame(getLocalAdminDisplayUrl());
+      updateAdminControlsBtn();
     }
 
     async function copyPresentationLink() {
@@ -1221,7 +1425,7 @@
     }
 
     function enterPresentation() {
-      openPresentationHere();
+      showPresentationInAdmin();
     }
 
     function backToIdle() {
@@ -1262,15 +1466,21 @@
       }).catch(() => {});
 
       connected = false;
+      controllerConnected = false;
+      pendingDisplayRequestId = '';
       currentSource = '-';
       presentationJoinUrl = '';
       presentationDisplayUrl = '';
       try { if (presentationDisplayWindow && !presentationDisplayWindow.closed) presentationDisplayWindow.close(); } catch(e) {}
       presentationDisplayWindow = null;
       setAdminLiveFullscreen(false);
+      closeAdminController(true);
 
       const frame = document.getElementById('adminDisplayFrame');
-      if (frame) frame.src = 'about:blank';
+      if (frame) {
+        frame.src = 'about:blank';
+        frame.removeAttribute('data-room');
+      }
 
       const urlText = document.getElementById('presentationUrlText');
       if (urlText) urlText.textContent = 'No active connection.';
@@ -1280,6 +1490,7 @@
       updateConnectionStatus('Disconnected. Click Connect to create a new room.', 'idle');
       updateConnectButton();
       showMode('idle');
+      setManualDisplayFallback(false);
 
       // Keep the disconnect flag briefly so any delayed exit event is ignored as a stale disconnect.
       setTimeout(() => { adminDisconnecting = false; }, 600);

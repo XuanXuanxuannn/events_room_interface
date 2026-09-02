@@ -26,7 +26,7 @@ router.get(
     const rows = getDb()
       .prepare(
         `SELECT * FROM uploaded_files
-         ORDER BY datetime(uploaded_at) DESC, id DESC`
+         ORDER BY datetime(replace(replace(uploaded_at, 'T', ' '), 'Z', '')) DESC, uploaded_at DESC, id DESC`
       )
       .all();
     res.json({ ok: true, files: rows.map(serialize) });

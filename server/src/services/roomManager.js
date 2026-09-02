@@ -127,13 +127,16 @@ function handlePresence({ room, role, action, clientId, userAgent }) {
     .prepare(`SELECT client_id FROM room_presence WHERE room_code = ? AND role = ?`)
     .get(key, r);
   if (existing && existing.client_id !== clientId) {
-    const err = new Error(
-      r === 'controller'
-        ? 'Another controller is already connected to this room. Please disconnect it before joining.'
-        : 'Another display screen is already connected to this room. Please close it before joining.'
-    );
-    err.status = 409;
-    throw err;
+    if (r === 'display') {
+      // One room screen: the newest display window takes over so Start is not dropped.
+      db.prepare(`DELETE FROM room_presence WHERE room_code = ? AND role = 'display'`).run(key);
+    } else {
+      const err = new Error(
+        'Another controller is already connected to this room. Please disconnect it before joining.'
+      );
+      err.status = 409;
+      throw err;
+    }
   }
 
   db.prepare(
