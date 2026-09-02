@@ -1,140 +1,37 @@
 # CBRIN Smart Event Space Platform
 
-A project to design and prototype a smart event-space platform for **CBRIN** that makes room display usage easier for presenters and more valuable for staff when the screen is idle.
+Web-based event-room platform for **Canberra Innovation Network (CBRIN)**. It simplifies how presenters connect to the room display and turns the screen into a branded billboard when idle.
 
-## Project Overview
+**Client:** Ben Garrett, CBRIN
 
-This project focuses on improving the usability of CBRIN’s event-room display. At present, connecting to the screen can involve multiple manual steps and may require staff assistance. In addition, the display provides limited value when it is not actively being used.
+**Team:** Yuxuan Liu (u7598939), Yiping Zhu (u7747684), Junnao Xiong (u7888908), Kai Kuang (u7628326)
 
-The proposed solution is a two-mode platform:
+## What it does
 
-- **Connection Mode**  
-  Supports presenter interaction with the room display through:
-  - wireless sharing
-  - file upload
-  - HDMI fallback
+Two operating modes:
 
-- **Billboard Mode**  
-  Turns the screen into a branded digital display when idle, showing content such as:
-  - upcoming events
-  - partner and sponsor logos
-  - community highlights
-  - room-related information
- 
-## Sprint 1 Summary
+| Mode | Purpose |
+|------|---------|
+| **Connection / Presentation** | Wireless join via QR or room code, PDF/PPT/PPTX upload, live slide sync to the room display, optional browser screen share, HDMI fallback path |
+| **Billboard (Idle)** | Branded idle slideshow managed from Admin (images, timing) |
 
-Sprint 1 focused on defining the project direction and validating early design choices.
+Primary runtime is the **Node.js production server** in [`server/`](server/) (Express + Socket.IO + SQLite). It serves Admin, Idle, and Presentation UIs and APIs on one process (port **3000**).
 
-### Sprint 1 Outcomes
+## Repository layout
 
-- Clarified project scope and requirements
-- Developed personas, scenarios, and user stories
-- Compared software implementation approaches
-- Compared hardware platform options
-- Produced early interface demos
-- Prepared the initial proposal and sprint review evidence
+```text
+server/          # Recommended: production LAN/on-prem Node server + UI
+  public/        # Admin, idle, presentation HTML
+  src/           # Express app, routes, services, SQLite
+  storage/       # DB, uploads, presentations, converted PDFs, certs
+  deploy/        # systemd / kiosk / backup notes
+backend/         # Legacy Flask API (reference only)
+demo/            # Earlier static demos (reference)
+```
 
-### Key Research Findings
+## Quick start (Node server)
 
-- A **web-based system** was identified as the preferred software approach for the MVP because it offers low setup friction, centralised maintenance, and flexibility for combining connection workflows with billboard content management.
-- A **mini PC** remains a strong longer-term option for cleaner permanent installation.
-- In Sprint 2, the team is exploring a **Raspberry Pi-based prototype path** for the simplest workable connection-flow demo.
-
-
-## Sprint 2 Focus
-
-Sprint 2 focused on establishing the technical baseline and developing an early connection demo for the prototype.
-
-### Sprint 2 outcomes
-
-- defined the core technology stack and local development environment
-- drafted a high-level system architecture
-- added initial project documentation
-- designed a low-fidelity connection-mode screen
-- prototyped the simplest workable connection flow
-- defined the HDMI fallback user flow
-- set up the backend / API connection
-- ran an internal test of the early connection demo
-
-### Key implementation findings
-
-- A **lightweight web-based prototype** remains suitable for Sprint 2 and it allows the team to connect frontend screens, backend endpoints, and demo workflows quickly.
-- A **simple backend / API layer** is useful for moving the prototype beyond static pages and supporting future dynamic features.
-- The **connection-mode workflow** should remain simple and presenter-focused, with HDMI fallback clearly available when the primary connection method does not work.
-
-## Repository Purpose
-
-This repository is used to store project materials, prototype work, documentation, and interface development for the CBRIN Smart Event Space Platform.
-
-It is expected to grow over the semester as the project moves from research and planning into implementation and testing.
-
-## Planned Deliverables
-
-The final project is expected to deliver:
-
-1. **Working Smart Event-Space Software Prototype**  
-   A prototype supporting the main system workflows, including presenter screen connection and idle billboard display.
-
-2. **Deployable Hardware-Software Setup**  
-   A working companion-device setup configured to run the prototype with the event-room display.
-
-3. **Maintainable Staff and System Interface**  
-   Presenter-facing and staff-facing interfaces that can be updated and managed after handover.
-
-4. **Final Documentation and Delivery Plan**  
-   Documentation, setup instructions, testing summary, limitations, and recommendations for future work.
-
-## Current Status
-
-This repository is currently in the **Sprint 2 prototype development stage**.  
-At this stage, the main focus is on:
-
-- technical baseline definition
-- local development setup
-- system architecture drafting
-- connection-mode screen design
-- early connection demo development
-- backend / API connection setup
-- HDMI fallback flow definition
-- internal testing of the early demo
-
-## Team
-
-**Team member(s):**
-- Yuxuan Liu, u7598939
-- Yiping Zhu, u7747684
-- Junnao Xiong, u7888908
-- Kai Kuang, u7628326
-
-
-## Client
-
-**Client:**  
-Ben Garrett, CBRIN
-
-## Future Work
-
-Planned next steps include:
-
-- establishing the technical foundation for the prototype
-- refining the connection-mode workflow
-- developing early presenter interaction screens
-- exploring billboard-mode content display
-- testing hardware assumptions and deployment options
-
-## Current MVP Status
-
-The repository now includes a working backend + demo-page integration for:
-
-- admin login
-- admin billboard content list/create/delete
-- presenter file upload (PDF/PPT/PPTX)
-- admin billboard image upload
-- uploaded-file listing with open links
-
-## Production Node server (recommended for LAN / on-prem)
-
-The production backend lives in [`server/`](server/). It replaces the demo single-file Node server and does not require Flask `:5000`.
+Requires **Node.js 18+**.
 
 ```bash
 cd server
@@ -142,83 +39,97 @@ cp .env.example .env
 npm install
 npm run migrate
 npm run seed-admin
+npm run generate-certs    # needed for HTTPS / LAN screen sharing
+# In .env: ENABLE_HTTPS=true
 npm start
 ```
 
-Then open `http://localhost:3000/admin` (default `admin` / `cbrin123`).
+Open (use **https**, not `http://0.0.0.0`):
 
-See [`server/README.md`](server/README.md) and [`server/deploy/DEPLOY.md`](server/deploy/DEPLOY.md) for Pi kiosk, systemd, backup, and LibreOffice conversion setup.
+| Page | URL |
+|------|-----|
+| Admin | https://localhost:3000/admin |
+| Idle / billboard | https://localhost:3000/idle |
+| Presentation | https://localhost:3000/presentation |
+| Health | https://localhost:3000/api/health |
 
-The current UI demo is still also available under `demo/Event_Room_Interface_Demo_v.3.9/` for reference. The Flask `backend/` folder remains as a legacy/reference implementation.
+Default admin credentials (change after first login):
 
-## Setup Instructions (legacy Flask backend)
+```text
+username: admin
+password: cbrin123
+```
 
-1. Create and activate a virtual environment
+Accept the self-signed certificate warning once in the browser when using HTTPS.
+
+### Optional: PowerPoint conversion
+
+PPT/PPTX can be converted to PDF via LibreOffice (`POST /api/convert-presentation`). Install LibreOffice and set in `server/.env`:
+
+```bash
+# macOS
+LIBREOFFICE_BIN=/Applications/LibreOffice.app/Contents/MacOS/soffice
+# Linux
+LIBREOFFICE_BIN=soffice
+```
+
+Upload size limit defaults to `MAX_UPLOAD_MB=30` (configurable in `.env`). Prefer uploading PDF when possible.
+
+More detail: [`server/README.md`](server/README.md) and [`server/deploy/DEPLOY.md`](server/deploy/DEPLOY.md).
+
+## Typical room workflow
+
+1. On the room PC, open **Admin** → Connect → **Wireless**.
+2. Presenter scans the QR code (or opens the join URL) on phone/laptop.
+3. Presenter uploads a file (or picks a stored one) → **Start Presentation**.
+4. The admin live display mirrors the deck; presenter controls pages from the controller.
+5. **End Presentation** / Admin **Disconnect** returns the room to waiting / idle.
+
+Screen share requires a secure context (HTTPS or localhost).
+
+## Current capabilities
+
+- Admin login (bcrypt + session/bearer tokens)
+- Wireless room create / QR join / presence (controller + display)
+- Presentation sync over SSE (start, page, zoom/pan, exit)
+- Presenter upload of PDF / PPT / PPTX with server-side storage
+- Admin **Manage Uploaded Files** (list, open, delete)
+- Presentation page can select previously stored uploads
+- Idle billboard slides (CRUD + timing)
+- Same-origin Socket.IO WebRTC signaling for screen share
+- LAN server-info helpers, health checks, cleanup jobs
+
+## Key APIs (Node)
+
+| Method | Path | Notes |
+|--------|------|--------|
+| `POST` | `/api/auth/login` | Admin login |
+| `GET`/`POST`/`DELETE` | `/api/idle-slides` | Billboard content |
+| `POST` | `/api/presentation-files` | Upload deck |
+| `GET` | `/api/presentation-files` | List stored decks |
+| `GET`/`DELETE` | `/api/uploaded-files` | Admin file management (auth) |
+| `GET` | `/api/presentation-events` | SSE sync |
+| `POST` | `/api/presentation-command` | start / sync / exit |
+| `POST` | `/api/presentation-presence` | join / leave / clear |
+| `POST` | `/api/rooms` | Create room (auth) |
+| `POST` | `/api/convert-presentation` | PPT/PPTX → PDF |
+| `GET` | `/api/health` | Liveness |
+
+## Legacy / reference
+
+- **`backend/`** — earlier Flask API and SQLite helpers. Not required when using `server/`.
+- **`demo/`** — historical UI demos (e.g. `Event_Room_Interface_Demo_v.3.9`). Prefer the pages served by the Node server.
+
+To run the legacy Flask path (optional):
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-```
-
-2. Install backend dependencies
-
-```bash
 pip install -r backend/requirements.txt
-```
-
-3. Initialize the database
-
-```bash
 python3 backend/init_db.py
-```
-
-4. (Optional) Seed sample data
-
-```bash
-python3 backend/seed_data.py
-```
-
-5. Run backend API server
-
-```bash
 python3 backend/app.py
 ```
 
-6. In a new terminal, run demo static pages
+## Project context
 
-```bash
-cd demo
-python3 -m http.server 5500
-```
-
-7. Open demo pages
-
-- Admin: `http://127.0.0.1:5500/Admin_1.html`
-- Presenter: `http://127.0.0.1:5500/presentation.html`
-
-## Admin Login (Demo Defaults)
-
-The current login endpoint uses environment variables, with defaults:
-
-- username: `admin`
-- password: `admin123`
-
-You can override with:
-
-- `ADMIN_USERNAME`
-- `ADMIN_PASSWORD`
-
-## Backend API Overview
-
-- `POST /api/auth/login`
-- `GET /api/health`
-- `GET /api/screen/state`
-- `GET /api/connection/options`
-- `GET /api/billboard/playlist`
-- `GET /api/bookings/current-next`
-- `GET /api/uploads`
-- `POST /api/uploads`
-- `POST /api/uploads/billboard-image`
-- `GET /api/admin/content`
-- `POST /api/admin/content`
-- `DELETE /api/admin/content/<id>`
+Built as a university client project to prototype a maintainable, web-based replacement for awkward multi-step room display connection, with idle billboard value for staff and partners. Hardware targets include a room PC and optional Raspberry Pi kiosk for the idle display.
