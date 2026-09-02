@@ -20,7 +20,7 @@ const config = {
   adminUsername: process.env.ADMIN_USERNAME || 'admin',
   adminPassword: process.env.ADMIN_PASSWORD || 'cbrin123',
   sessionTtlHours: Number(process.env.SESSION_TTL_HOURS || 12),
-  maxUploadMb: Number(process.env.MAX_UPLOAD_MB || 30),
+  maxUploadMb: Number(process.env.MAX_UPLOAD_MB || 100),
   presenceTtlMs: Number(process.env.PRESENCE_TTL_MS || 30000),
   roomExpireHours: Number(process.env.ROOM_EXPIRE_HOURS || 12),
   cleanupIntervalMs: Number(process.env.CLEANUP_INTERVAL_MS || 900000),

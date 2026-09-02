@@ -4,7 +4,7 @@ const express = require('express');
 const { optionalAuth } = require('../middleware/auth');
 const { presentationUpload } = require('../middleware/upload');
 const { asyncHandler } = require('../middleware/errors');
-const { convertPresentation } = require('../services/conversionService');
+const { convertPresentation, removeSourceOfficeFile } = require('../services/conversionService');
 const { getDb } = require('../db');
 const { config } = require('../config');
 
@@ -77,6 +77,7 @@ router.post(
         )
         .get(sourceId);
       if (existing && existing.file_path && fs.existsSync(existing.file_path)) {
+        removeSourceOfficeFile(sourceId, { promotePdfId: existing.id });
         return res.json({
           ok: true,
           id: existing.id,

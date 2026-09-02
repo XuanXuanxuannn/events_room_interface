@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { spawn } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 const { config } = require('../config');
@@ -8,32 +9,65 @@ const { getDb } = require('../db');
 const queue = [];
 let running = false;
 
+function toFileUrl(absolutePath) {
+  const normalized = path.resolve(absolutePath).replace(/\\/g, '/');
+  // LibreOffice UserInstallation expects a file:// URL.
+  if (normalized.startsWith('/')) return `file://${normalized}`;
+  return `file:///${normalized}`;
+}
+
 function runLibreOffice(inputPath, outDir) {
   return new Promise((resolve, reject) => {
     const bin = config.libreOfficeBin;
+    // macOS/headless LO often fails with "source file could not be loaded" when the
+    // default user profile is locked (GUI open, stale lock, concurrent converts).
+    const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lo-profile-'));
     const args = [
       '--headless',
       '--nologo',
       '--nolockcheck',
       '--nodefault',
       '--nofirststartwizard',
+      `-env:UserInstallation=${toFileUrl(profileDir)}`,
       '--convert-to',
       'pdf',
       '--outdir',
       outDir,
-      inputPath,
+      path.resolve(inputPath),
     ];
-    const child = spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(bin, args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        HOME: process.env.HOME || os.homedir(),
+      },
+    });
+    let stdout = '';
     let stderr = '';
+    child.stdout.on('data', (d) => {
+      stdout += d.toString();
+    });
     child.stderr.on('data', (d) => {
       stderr += d.toString();
     });
     child.on('error', (err) => {
+      try {
+        fs.rmSync(profileDir, { recursive: true, force: true });
+      } catch (_e) {
+        /* ignore */
+      }
       reject(new Error(`LibreOffice failed to start (${bin}): ${err.message}`));
     });
     child.on('close', (code) => {
+      try {
+        fs.rmSync(profileDir, { recursive: true, force: true });
+      } catch (_e) {
+        /* ignore */
+      }
+      // Fontconfig warnings are common and harmless; only fail on non-zero exit.
       if (code !== 0) {
-        reject(new Error(`LibreOffice exited with code ${code}: ${stderr || 'unknown error'}`));
+        const detail = (stderr || stdout || 'unknown error').trim();
+        reject(new Error(`LibreOffice exited with code ${code}: ${detail}`));
         return;
       }
       resolve();
@@ -64,6 +98,13 @@ async function convertFileToPdf(sourcePath, originalName) {
   const finalPath = path.join(config.convertedDir, storedName);
   fs.copyFileSync(pdfPath, finalPath);
 
+  // Drop the temporary work copy of the Office file (and any LO sidecar junk).
+  try {
+    fs.rmSync(workDir, { recursive: true, force: true });
+  } catch (_e) {
+    /* ignore */
+  }
+
   return {
     id,
     filename: `${path.basename(originalName || 'presentation', ext)}.pdf`,
@@ -71,6 +112,31 @@ async function convertFileToPdf(sourcePath, originalName) {
     publicUrl: `/converted/${storedName}`,
     size: fs.statSync(finalPath).size,
   };
+}
+
+function removeSourceOfficeFile(sourceId, { promotePdfId = null } = {}) {
+  if (!sourceId) return;
+  const db = getDb();
+  const source = db.prepare(`SELECT * FROM uploaded_files WHERE id = ?`).get(sourceId);
+  if (source) {
+    const ext = String(source.file_type || path.extname(source.filename || '') || '')
+      .toLowerCase()
+      .replace('.', '');
+    if (ext === 'ppt' || ext === 'pptx') {
+      if (source.file_path && fs.existsSync(source.file_path)) {
+        try {
+          fs.unlinkSync(source.file_path);
+        } catch (err) {
+          console.warn('Could not delete source Office file:', err.message);
+        }
+      }
+      db.prepare(`DELETE FROM uploaded_files WHERE id = ?`).run(sourceId);
+    }
+  }
+  if (promotePdfId) {
+    // Keep the PDF as a first-class library file (list filters converted_from_id IS NULL).
+    db.prepare(`UPDATE uploaded_files SET converted_from_id = NULL WHERE id = ?`).run(promotePdfId);
+  }
 }
 
 function enqueue(job) {
@@ -117,8 +183,9 @@ async function convertPresentation({ sourcePath, originalName, sourceId, uploade
       sourceId || null,
       uploadedBy || null
     );
+    // After a successful convert, drop the original PPT/PPTX (disk + DB row).
     if (sourceId) {
-      db.prepare(`UPDATE uploaded_files SET status = 'converted' WHERE id = ?`).run(sourceId);
+      removeSourceOfficeFile(sourceId, { promotePdfId: converted.id });
     }
     return {
       id: converted.id,
@@ -138,4 +205,4 @@ async function convertPresentation({ sourcePath, originalName, sourceId, uploade
   }
 }
 
-module.exports = { convertPresentation, convertFileToPdf };
+module.exports = { convertPresentation, convertFileToPdf, removeSourceOfficeFile };

@@ -10,7 +10,7 @@ Replaces the single-file demo server and the Flask `:5000` screen-share dependen
 - SQLite persistence for users, idle slides, uploads, rooms, presence, presentation state, screen share
 - Demo-compatible APIs: idle slides, presentation SSE sync, presence, uploads
 - Socket.IO WebRTC signaling for screen share (same origin)
-- LibreOffice-powered `/api/convert-presentation` for PPT/PPTX → PDF
+- LibreOffice-powered PPT/PPTX → PDF conversion on upload (`POST /api/presentation-files`) and via `/api/convert-presentation`
 - Health checks, rate limits, cleanup jobs, systemd + kiosk docs
 
 ## Quick start
@@ -23,6 +23,7 @@ npm run migrate
 npm run seed-admin
 npm run generate-certs   # required for LAN screen sharing
 # ensure ENABLE_HTTPS=true in .env
+# For PPT/PPTX uploads, install LibreOffice and set LIBREOFFICE_BIN
 npm start
 ```
 
@@ -32,6 +33,8 @@ Open:
 - Idle: `https://localhost:3000/idle`
 - Presentation: `https://localhost:3000/presentation`
 - Health: `https://localhost:3000/api/health`
+
+**Uploads:** default limit is `MAX_UPLOAD_MB=100`. PPT/PPTX are converted to PDF on the server during upload (requires LibreOffice). Prefer uploading PDF when you can.
 
 **Screen sharing:** browsers block capture on `http://LAN-IP`. Use HTTPS (above) or open presentation on the presenting PC via `https://localhost:3000/presentation`.
 
@@ -68,7 +71,7 @@ See [deploy/DEPLOY.md](deploy/DEPLOY.md) for systemd, firewall, backup, and Libr
 | POST | `/api/auth/login` | no | Admin login |
 | GET | `/api/auth/me` | yes | Current admin |
 | GET/POST/DELETE | `/api/idle-slides` | write=yes | Billboard CRUD |
-| POST | `/api/presentation-files` | no | Upload PDF/PPT/PPTX |
+| POST | `/api/presentation-files` | no | Upload PDF/PPT/PPTX (PPT→PDF on upload) |
 | GET | `/api/presentation-events` | no | SSE sync |
 | POST | `/api/presentation-presence` | clear-room=yes | Join/leave/clear |
 | POST | `/api/presentation-command` | no | start/sync/exit |
