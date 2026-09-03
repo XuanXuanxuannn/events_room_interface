@@ -390,9 +390,12 @@
     body.controller-role .demo-shell.presentation-active .presenter-control-bar .presenter-disconnect-btn{
       background:linear-gradient(135deg,#d94b67,#c73654);
     }
-    body.display-role .presenter-control-bar{display:none !important;}
-    body.controller-role .demo-shell.presentation-active .mobile-file-button-row{
-      bottom:calc(env(safe-area-inset-bottom, 0px) + 82px) !important;
+    body.controller-role:not(.controller-mobile) .demo-shell.presentation-active .presenter-control-bar .presenter-disconnect-btn,
+    body.controller-role:not(.controller-mobile) .demo-shell.presentation-active .nav-left,
+    body.controller-role:not(.controller-mobile) .demo-shell.presentation-active .nav-right,
+    body.controller-role:not(.controller-mobile) .demo-shell.presentation-active .mobile-file-button-row,
+    body.display-role .presenter-control-bar{
+      display:none !important;
     }
     .nav-btn,.zoom-btn{
       pointer-events:auto;position:absolute;border:none;border-radius:999px;cursor:pointer;color:#fff;font-weight:900;
@@ -587,11 +590,9 @@
     }
 
 
-    /* iPad/controller fallback: iPadOS may report itself as a desktop Mac, so do not rely only on controller-mobile.
-       In controller presentation mode, always show both file switch buttons as a fixed centered row. */
     body.controller-role .demo-shell.presentation-active .nav-up,
     body.controller-role .demo-shell.presentation-active .nav-down{display:none !important;}
-    body.controller-role .demo-shell.presentation-active .mobile-file-button-row{
+    body.controller-mobile.controller-role .demo-shell.presentation-active .mobile-file-button-row{
       display:flex !important;
       position:fixed !important;
       left:50% !important;
@@ -608,7 +609,7 @@
       align-items:center !important;
       flex-wrap:nowrap !important;
     }
-    body.controller-role .demo-shell.presentation-active .mobile-file-switch-btn{
+    body.controller-mobile.controller-role .demo-shell.presentation-active .mobile-file-switch-btn{
       display:inline-flex !important;
       align-items:center !important;
       justify-content:center !important;
@@ -616,8 +617,13 @@
       white-space:nowrap !important;
       pointer-events:auto !important;
     }
+    body.controller-mobile.controller-role .demo-shell.presentation-active .top-exit,
+    body.controller-mobile.controller-role .demo-shell.presentation-active .nav-left,
+    body.controller-mobile.controller-role .demo-shell.presentation-active .nav-right{
+      display:none !important;
+    }
     @supports (bottom: constant(safe-area-inset-bottom)){
-      body.controller-role .demo-shell.presentation-active .mobile-file-button-row{bottom:calc(constant(safe-area-inset-bottom) + 82px) !important;}
+      body.controller-mobile.controller-role .demo-shell.presentation-active .mobile-file-button-row{bottom:calc(constant(safe-area-inset-bottom) + 82px) !important;}
     }
 
     /* Selected front-end refinements: consistent sizing, responsive controls and slide catalogue. */
