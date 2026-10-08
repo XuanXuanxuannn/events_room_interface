@@ -383,12 +383,23 @@
     body.controller-role .demo-shell.presentation-active .presenter-control-bar .presenter-nav-btn{
       background:linear-gradient(135deg, var(--accent), var(--accent-2));
     }
-    body.controller-role .demo-shell.presentation-active .presenter-control-bar .presenter-nav-btn:disabled{
+    body.controller-role .demo-shell.presentation-active .presenter-control-bar .presenter-nav-btn:disabled,
+    body.controller-role .demo-shell.presentation-active .presenter-control-bar .presenter-file-btn:disabled{
       opacity:.4;
       cursor:default;
     }
     body.controller-role .demo-shell.presentation-active .presenter-control-bar .presenter-disconnect-btn{
       background:linear-gradient(135deg,#d94b67,#c73654);
+    }
+    .presenter-file-btn{display:none;}
+    body.controller-role:not(.controller-mobile) .demo-shell.presentation-active .presenter-control-bar .presenter-file-btn{
+      display:inline-flex !important;
+      align-items:center;
+      justify-content:center;
+      white-space:nowrap;
+      min-width:112px;
+      background:rgba(255,255,255,.16);
+      border:1px solid rgba(255,255,255,.28) !important;
     }
     body.controller-role:not(.controller-mobile) .demo-shell.presentation-active .presenter-control-bar .presenter-disconnect-btn,
     body.controller-role:not(.controller-mobile) .demo-shell.presentation-active .nav-left,
@@ -861,8 +872,10 @@
         <button class="nav-btn nav-up" onclick="switchPresentationFile(-1)" aria-label="Previous uploaded file">↑ File</button>
         <button class="nav-btn nav-down" onclick="switchPresentationFile(1)" aria-label="Next uploaded file">↓ File</button>
         <div class="presenter-control-bar" id="presenterControlBar" aria-label="Presenter controls">
+          <button type="button" class="presenter-file-btn" id="presenterPrevFileBtn" onclick="switchPresentationFile(-1)">Prev file</button>
           <button type="button" class="presenter-nav-btn" id="presenterPrevBtn" onclick="prevDemoPage()">Previous</button>
           <button type="button" class="presenter-nav-btn" id="presenterNextBtn" onclick="nextDemoPage()">Next</button>
+          <button type="button" class="presenter-file-btn" id="presenterNextFileBtn" onclick="switchPresentationFile(1)">Next file</button>
           <button type="button" class="presenter-disconnect-btn" onclick="disconnectControllerSession()">Disconnect</button>
         </div>
         <div class="mobile-file-button-row" aria-label="Mobile file switch controls">
@@ -1028,6 +1041,11 @@
     let pdfLoadGeneration = 0;
     let pdfRenderGeneration = 0;
     let pdfJsLoadingPromise = null;
+    let pdfJsFromCdn = false;
+    let pdfUsingNativeViewer = false;
+    let pdfRenderedZoom = 1;
+    let presentationEventChain = Promise.resolve();
+    let displayCatchUpTimers = [];
     let presentationZoom = 1;
     let presentationPanX = 0;
     let presentationPanY = 0;
@@ -1353,18 +1371,35 @@
       return item;
     }
 
-    async function sendPresentationCommand(command, data = {}) {
+    async function sendPresentationCommand(command, data = {}, options = {}) {
       const seq = data.seq || (++localCommandSeq + Date.now() * 1000);
+      const { seq: _seq, ...rest } = data;
       try {
-        await fetch(BACKEND_COMMAND_ENDPOINT, {
+        const res = await fetch(BACKEND_COMMAND_ENDPOINT, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ room: ROOM_ID, command, seq, sender: PRESENTATION_ROLE, clientId: CLIENT_ID, ...data })
+          body: JSON.stringify({ room: ROOM_ID, command, seq, sender: PRESENTATION_ROLE, clientId: CLIENT_ID, ...rest })
         });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || ('Room command failed (' + res.status + ')'));
+        }
       } catch (err) {
         console.warn('Remote command failed:', err);
+        if (options.required) throw err;
       }
       return seq;
+    }
+
+    function scheduleDisplayCatchUp(remotePayload) {
+      displayCatchUpTimers.forEach(id => clearTimeout(id));
+      displayCatchUpTimers = [700, 2000].map(delay => setTimeout(() => {
+        if (PRESENTATION_ROLE !== 'controller' || !currentPresentation || !remotePayload) return;
+        const currentId = String(currentPresentation.remoteId || currentPresentation.id || '');
+        const payloadId = String(remotePayload.id || '');
+        if (payloadId && currentId && payloadId !== currentId) return;
+        sendPresentationCommand('start', { presentation: remotePayload }).then(() => setTimeout(broadcastViewState, 80));
+      }, delay));
     }
 
     function setStartGate(mode, message = '') {
@@ -1461,7 +1496,9 @@
       if (currentPresentation.type === 'pdf') {
         const max = pdfDoc ? pdfDoc.numPages : next;
         pdfPage = Math.min(max, next);
-        if (pdfDoc) renderPdfPage(); else renderPresentationCanvas(currentPresentation);
+        if (pdfDoc) renderPdfPage();
+        else if (pdfUsingNativeViewer) updateNativePdfFrame();
+        else renderPresentationCanvas(currentPresentation);
       } else if (currentPresentation.type === 'pptx') {
         const max = currentPresentation.slides && currentPresentation.slides.length ? currentPresentation.slides.length : 1;
         pptxPage = Math.min(max, next);
@@ -1529,14 +1566,15 @@
           clampPanToBounds();
         } else if (Number.isFinite(Number(msg.panRatioX)) || Number.isFinite(Number(msg.panRatioY))) {
           if (currentPresentation.type === 'pdf' && pdfDoc) await renderPdfPage();
-          else renderPresentationCanvas(currentPresentation);
+          else if (currentPresentation.type !== 'pdf') renderPresentationCanvas(currentPresentation);
           applyPanRatios(msg.panRatioX, msg.panRatioY);
         } else {
           if (Number.isFinite(Number(msg.panX))) presentationPanX = normalizeRemotePanForThisDevice(msg.panX, msg.sender);
           if (Number.isFinite(Number(msg.panY))) presentationPanY = normalizeRemotePanForThisDevice(msg.panY, msg.sender);
         }
         if (currentPresentation.type === 'pdf' && pdfDoc) await renderPdfPage();
-        else renderPresentationCanvas(currentPresentation);
+        else if (currentPresentation.type === 'pdf' && pdfUsingNativeViewer) updateNativePdfFrame();
+        else if (currentPresentation.type !== 'pdf') renderPresentationCanvas(currentPresentation);
       } finally {
         applyingRemoteCommand = false;
       }
@@ -1698,7 +1736,8 @@
     function connectPresentationEvents() {
       if (!window.EventSource) return;
       const source = new EventSource(BACKEND_EVENTS_ENDPOINT + '?room=' + encodeURIComponent(ROOM_ID));
-      source.onmessage = async (event) => {
+      source.onmessage = (event) => {
+        presentationEventChain = presentationEventChain.catch(() => {}).then(async () => {
         let msg;
         try { msg = JSON.parse(event.data || '{}'); } catch (e) { return; }
         if (!msg || !msg.command) return;
@@ -1736,7 +1775,7 @@
           const syncSeq = Number(msg.seq || msg.at || 0);
           if (syncSeq && syncSeq <= lastRemoteSyncSeq) return;
           if (syncSeq) lastRemoteSyncSeq = syncSeq;
-          applyRemoteViewState(msg);
+          await applyRemoteViewState(msg);
         }
         if (msg.command === 'screen-share-start') {
           if (PRESENTATION_ROLE === 'display') {
@@ -1762,6 +1801,7 @@
             exitFlow(false);
           }
         }
+        });
       };
       source.onerror = () => console.warn('Presentation event connection lost or reconnecting...');
     }
@@ -2025,8 +2065,15 @@
       normalizePresentationItem(selected);
       const seq = ++localCommandSeq + Date.now() * 1000;
       lastRemoteStartSeq = seq;
-      await sendPresentationCommand('start', { presentation: remotePayload, seq });
+      try {
+        await sendPresentationCommand('start', { presentation: remotePayload, seq }, { required: true });
+      } catch (err) {
+        showError('uploadError', 'The room display did not receive this presentation: ' + (err.message || 'connection failed'));
+        showToast('Could not reach the room display');
+        return;
+      }
       await beginPresentationFile(selected, true);
+      scheduleDisplayCatchUp(remotePayload);
     }
 
     async function beginPresentationFile(selected, resetPage = true) {
@@ -2037,6 +2084,8 @@
       if (pdfRenderTask) { try { pdfRenderTask.cancel(); } catch (e) {} pdfRenderTask = null; }
       currentPresentation = selected;
       selectedPresentationId = selected.id;
+      pdfUsingNativeViewer = false;
+      pdfRenderedZoom = 1;
       pdfDoc = null;
       if (oldPdfDoc && oldPdfDoc.destroy) oldPdfDoc.destroy().catch(() => {});
       if (resetPage) {
@@ -2185,20 +2234,36 @@
       updateCatalogCurrent();
     }
 
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('Failed to load ' + src));
+        document.head.appendChild(script);
+      });
+    }
+
     async function ensurePdfJs() {
       if (window.pdfjsLib) return window.pdfjsLib;
       if (!pdfJsLoadingPromise) {
-        pdfJsLoadingPromise = new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-          script.onload = () => resolve(window.pdfjsLib);
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
+        pdfJsLoadingPromise = (async () => {
+          try {
+            await loadScript('/vendor/pdfjs/pdf.min.js');
+            pdfJsFromCdn = false;
+          } catch (err) {
+            console.warn('Local PDF.js failed, trying CDN:', err);
+            pdfJsFromCdn = true;
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+          }
+          return window.pdfjsLib;
+        })();
       }
       const lib = await pdfJsLoadingPromise;
       if (lib && lib.GlobalWorkerOptions) {
-        lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        lib.GlobalWorkerOptions.workerSrc = pdfJsFromCdn
+          ? 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+          : '/vendor/pdfjs/pdf.worker.min.js';
       }
       return lib;
     }
@@ -2214,6 +2279,7 @@
           return;
         }
         pdfDoc = loadedDoc;
+        pdfUsingNativeViewer = false;
         if (pdfPage > pdfDoc.numPages) pdfPage = pdfDoc.numPages;
         if (pdfPage < 1) pdfPage = 1;
         renderCatalog();
@@ -2222,12 +2288,30 @@
       } catch (err) {
         if (generation !== pdfLoadGeneration || currentPresentation !== item) return;
         console.warn('PDF.js failed, using browser PDF fallback:', err);
-        const wrap = document.getElementById('pdfCanvasWrap');
-        if (wrap) {
-          wrap.innerHTML = `<iframe class="native-pdf-frame" src="${item.url}#page=${pdfPage}&zoom=page-fit&toolbar=0&navpanes=0&scrollbar=0" title="${escapeHtml(item.name)}"></iframe>`;
-        }
+        pdfUsingNativeViewer = true;
+        pdfDoc = null;
+        updateNativePdfFrame();
         updateViewerStatus();
         updateNavigationControls();
+      }
+    }
+
+    function updateNativePdfFrame() {
+      const wrap = document.getElementById('pdfCanvasWrap');
+      if (!wrap || !currentPresentation) return;
+      const pageHash = 'page=' + pdfPage + '&zoom=page-fit&toolbar=0&navpanes=0&scrollbar=0';
+      let frame = wrap.querySelector('iframe.native-pdf-frame');
+      if (!frame) {
+        wrap.innerHTML = '';
+        frame = document.createElement('iframe');
+        frame.className = 'native-pdf-frame';
+        frame.title = currentPresentation.name || 'PDF';
+        wrap.appendChild(frame);
+      }
+      const nextSrc = currentPresentation.url + '#' + pageHash;
+      if (frame.getAttribute('data-pdf-src') !== nextSrc) {
+        frame.setAttribute('data-pdf-src', nextSrc);
+        frame.src = nextSrc;
       }
     }
 
@@ -2241,31 +2325,57 @@
       if (!canvas || !wrap) return;
       if (pdfRenderTask) {
         try { pdfRenderTask.cancel(); } catch (e) {}
+        pdfRenderTask = null;
       }
-      const page = await currentDoc.getPage(pdfPage);
+      const pageNumber = pdfPage;
+      const zoomForRender = presentationZoom;
+      let page;
+      try {
+        page = await currentDoc.getPage(pageNumber);
+      } catch (err) {
+        if (err && err.name !== 'RenderingCancelledException') console.warn(err);
+        return;
+      }
       if (renderGeneration !== pdfRenderGeneration || expectedLoadGeneration !== pdfLoadGeneration || pdfDoc !== currentDoc || currentPresentation !== currentItem) return;
       const baseViewport = page.getViewport({ scale: 1 });
       const availableW = Math.max(260, wrap.clientWidth - 24);
       const availableH = Math.max(260, wrap.clientHeight - 24);
       const fitScale = Math.min(availableW / baseViewport.width, availableH / baseViewport.height);
-      const scale = Math.max(.2, fitScale * presentationZoom);
+      const outputScale = Math.min(2, window.devicePixelRatio || 1);
+      const maxEdge = 4096;
+      let scale = Math.max(0.2, fitScale * zoomForRender);
+      scale = Math.min(scale, maxEdge / (baseViewport.width * outputScale), maxEdge / (baseViewport.height * outputScale));
       const viewport = page.getViewport({ scale });
-      const ratio = window.devicePixelRatio || 1;
-      canvas.width = Math.floor(viewport.width * ratio);
-      canvas.height = Math.floor(viewport.height * ratio);
-      canvas.style.width = Math.floor(viewport.width) + 'px';
-      canvas.style.height = Math.floor(viewport.height) + 'px';
-      canvas.style.transform = `translate(${presentationPanX}px, ${presentationPanY}px)`;
-      const ctx = canvas.getContext('2d');
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      const pixelW = Math.max(1, Math.floor(viewport.width * outputScale));
+      const pixelH = Math.max(1, Math.floor(viewport.height * outputScale));
+      const buffer = document.createElement('canvas');
+      buffer.width = pixelW;
+      buffer.height = pixelH;
+      const ctx = buffer.getContext('2d', { alpha: false });
+      ctx.setTransform(outputScale, 0, 0, outputScale, 0, 0);
       updateViewerStatus();
       updateNavigationControls();
       updateCatalogCurrent();
       pdfRenderTask = page.render({ canvasContext: ctx, viewport });
-      try { await pdfRenderTask.promise; } catch (err) { if (err && err.name !== 'RenderingCancelledException') console.warn(err); }
-      if (renderGeneration === pdfRenderGeneration) pdfRenderTask = null;
+      try {
+        await pdfRenderTask.promise;
+      } catch (err) {
+        if (err && err.name !== 'RenderingCancelledException') console.warn(err);
+        return;
+      }
+      if (renderGeneration !== pdfRenderGeneration || expectedLoadGeneration !== pdfLoadGeneration || pdfDoc !== currentDoc || currentPresentation !== currentItem) return;
+      const liveCanvas = document.getElementById('pdfCanvas');
+      if (!liveCanvas) return;
+      liveCanvas.width = pixelW;
+      liveCanvas.height = pixelH;
+      liveCanvas.style.width = Math.floor(viewport.width) + 'px';
+      liveCanvas.style.height = Math.floor(viewport.height) + 'px';
+      liveCanvas.style.transform = `translate(${presentationPanX}px, ${presentationPanY}px)`;
+      const liveCtx = liveCanvas.getContext('2d');
+      liveCtx.setTransform(1, 0, 0, 1, 0, 0);
+      liveCtx.drawImage(buffer, 0, 0);
+      pdfRenderedZoom = zoomForRender;
+      pdfRenderTask = null;
     }
 
     function updateViewerStatus() {
@@ -2292,12 +2402,19 @@
       const next = document.getElementById('pageNextBtn');
       const barPrev = document.getElementById('presenterPrevBtn');
       const barNext = document.getElementById('presenterNextBtn');
+      const prevFile = document.getElementById('presenterPrevFileBtn');
+      const nextFile = document.getElementById('presenterNextFileBtn');
       const page = currentPresentation ? getCurrentPresentationPage() : demoIndex;
       const total = getPresentationPageCount();
       if (previous) previous.classList.toggle('boundary-hidden', page <= 1);
       if (next) next.classList.toggle('boundary-hidden', page >= total);
       if (barPrev) barPrev.disabled = page <= 1;
       if (barNext) barNext.disabled = page >= total;
+      const fileIndex = currentPresentation
+        ? uploadedPresentations.findIndex(item => item === currentPresentation || item.id === currentPresentation.id || item.remoteId === currentPresentation.id || item.id === currentPresentation.remoteId)
+        : -1;
+      if (prevFile) prevFile.disabled = uploadedPresentations.length < 2 || fileIndex <= 0;
+      if (nextFile) nextFile.disabled = uploadedPresentations.length < 2 || fileIndex < 0 || fileIndex >= uploadedPresentations.length - 1;
     }
 
     function toggleCatalog(open) {
@@ -2424,7 +2541,9 @@
           if (!pdfDoc || pdfPage < pdfDoc.numPages) pdfPage += 1;
           changed = pdfPage !== before;
           if (changed) resetViewForPageChange();
-          if (pdfDoc) renderPdfPage(); else renderPresentationCanvas(currentPresentation);
+          if (pdfDoc) renderPdfPage();
+          else if (pdfUsingNativeViewer) updateNativePdfFrame();
+          else renderPresentationCanvas(currentPresentation);
         } else if (currentPresentation.type === 'pptx') {
           const before = pptxPage;
           const max = currentPresentation.slides && currentPresentation.slides.length ? currentPresentation.slides.length : 1;
@@ -2447,7 +2566,9 @@
         if (currentPresentation.type === 'pdf' && pdfPage > 1) {
           pdfPage -= 1;
           resetViewForPageChange();
-          if (pdfDoc) renderPdfPage(); else renderPresentationCanvas(currentPresentation);
+          if (pdfDoc) renderPdfPage();
+          else if (pdfUsingNativeViewer) updateNativePdfFrame();
+          else renderPresentationCanvas(currentPresentation);
         } else if (currentPresentation.type === 'pptx' && pptxPage > 1) {
           pptxPage -= 1;
           resetViewForPageChange();
@@ -2476,7 +2597,9 @@
           if (token !== lastSwitchToken) return;
           const seq = ++localCommandSeq + Date.now() * 1000;
           lastRemoteStartSeq = seq;
-          await sendPresentationCommand('start', { presentation: remotePayload, seq });
+          await sendPresentationCommand('start', { presentation: remotePayload, seq }, { required: true });
+          if (token !== lastSwitchToken) return;
+          scheduleDisplayCatchUp(remotePayload);
         } catch (err) {
           showToast('Switch failed: ' + err.message);
           return;
@@ -2949,11 +3072,25 @@
 
     const demoPageEl = document.getElementById('demoPage');
     if (demoPageEl) {
+      let wheelCommitTimer = null;
       demoPageEl.addEventListener('wheel', (event) => {
         if (!currentPresentation || !pages.demo || !pages.demo.classList.contains('active')) return;
+        if (event.target.closest('button,.presenter-control-bar,.catalog-drawer,.catalog-toggle,.top-exit')) return;
         event.preventDefault();
-        const factor = event.deltaY < 0 ? 1.08 : 0.92;
-        applyZoom(presentationZoom * factor, { clientX: event.clientX, clientY: event.clientY });
+        const factor = event.deltaY < 0 ? 1.04 : 0.96;
+        const nextZoom = clampZoom(presentationZoom * factor);
+        if (nextZoom === presentationZoom) return;
+        presentationZoom = nextZoom;
+        if (currentPresentation.type === 'pdf') {
+          const canvas = document.getElementById('pdfCanvas');
+          const preview = pdfRenderedZoom > 0 ? presentationZoom / pdfRenderedZoom : 1;
+          if (canvas) canvas.style.transform = `translate(${presentationPanX}px, ${presentationPanY}px) scale(${preview})`;
+          updateViewerStatus();
+        } else {
+          applyPptxTransform();
+        }
+        clearTimeout(wheelCommitTimer);
+        wheelCommitTimer = setTimeout(() => applyZoom(presentationZoom, { force: true }), 180);
       }, { passive: false });
 
       demoPageEl.addEventListener('mousedown', (event) => {

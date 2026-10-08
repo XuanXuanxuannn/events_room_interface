@@ -12,6 +12,9 @@ function resolveLibreOfficeBin() {
     '/Applications/LibreOffice.app/Contents/MacOS/soffice',
     '/opt/homebrew/bin/soffice',
     '/usr/local/bin/soffice',
+    '/usr/bin/soffice',
+    '/usr/bin/libreoffice',
+    '/usr/lib/libreoffice/program/soffice',
     'soffice',
   ].filter(Boolean);
   for (const bin of candidates) {
