@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS idle_slides (
   file_name TEXT,
   uploaded_at TEXT NOT NULL DEFAULT (datetime('now')),
   display_order INTEGER NOT NULL DEFAULT 0,
-  is_active INTEGER NOT NULL DEFAULT 1
+  is_active INTEGER NOT NULL DEFAULT 1,
+  show_caption INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS uploaded_files (

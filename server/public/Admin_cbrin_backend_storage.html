@@ -62,6 +62,8 @@
       background:#1b114c;color:var(--text);outline:none;
     }
     .field textarea{min-height:96px;resize:vertical}
+    .field label.check-row{display:flex;align-items:center;gap:10px;margin-bottom:0;color:var(--text);font-size:14px;font-weight:800;cursor:pointer;}
+    .check-row input[type="checkbox"]{width:18px;height:18px;margin:0;padding:0;accent-color:#a82e9b;}
     .field input:focus,.field textarea:focus{
       border-color:var(--accent);box-shadow:0 0 0 3px rgba(168,46,155,.18)
     }
@@ -236,6 +238,10 @@
     .delete-x{
       position:absolute;right:10px;top:10px;width:32px;height:32px;border-radius:999px;border:none;
       background:var(--danger);color:white;font-weight:800;cursor:pointer;
+    }
+    .caption-toggle{
+      position:absolute;left:10px;top:10px;z-index:2;border:none;border-radius:999px;
+      padding:7px 10px;background:rgba(12,8,36,.78);color:#fff;font-size:12px;font-weight:800;cursor:pointer;
     }
     .add-card{
       display:grid;place-items:center;cursor:pointer;color:var(--text);
@@ -412,6 +418,8 @@
     .screensaver .screen-bottom>div:first-child{display:none!important}
     .screensaver .screen-bottom{grid-template-columns:1fr;justify-items:end}
     .screensaver .glass{width:min(430px,100%)}
+    .screen.image-only-slide .screensaver .mode-top,
+    .screen.image-only-slide .screensaver .screen-bottom{display:none !important;}
     .image-card,.add-card{border:2px solid rgba(255,255,255,.42)!important;box-shadow:0 0 0 1px rgba(0,0,0,.2) inset}
     .add-card{border-style:dashed!important;background:rgba(255,255,255,.075)!important}
     #manualDisplayOpenBtn{display:none}
@@ -647,6 +655,15 @@
       <p>Create one image slide for the idle rotation.</p>
 
       <div class="field">
+        <label class="check-row" for="imageOnlyToggle">
+          <input id="imageOnlyToggle" type="checkbox" checked onchange="toggleImageCaptionFields()" />
+          Show only the image
+        </label>
+        <div class="hint">Leave this off to show the file name and description on the slide. Turn it on to show the picture by itself.</div>
+      </div>
+
+      <div id="captionFields">
+      <div class="field">
         <label for="newSlideType">Slide Type</label>
         <input id="newSlideType" placeholder="event / partner / booking" />
       </div>
@@ -658,6 +675,7 @@
       <div class="field">
         <label for="newImageDesc">Description</label>
         <textarea id="newImageDesc" placeholder="A quick note for this image"></textarea>
+      </div>
       </div>
       <div class="field">
         <label for="newIdleImageFile">Image File</label>
@@ -1609,9 +1627,14 @@
         billboardText.textContent = 'Add a slide to get started';
         billboardDesc.textContent = 'Your idle slideshow will show up here.';
         idleImageFrame.style.backgroundImage = 'none';
+        const preview = document.getElementById('previewScreen');
+        if (preview) preview.classList.remove('image-only-slide');
         return;
       }
       const item = idleSlides[slideIndex % idleSlides.length];
+      const imageOnly = item.showCaption === false;
+      const preview = document.getElementById('previewScreen');
+      if (preview) preview.classList.toggle('image-only-slide', imageOnly);
       slideTypeBadge.textContent = (item.type || 'slide').toUpperCase();
       billboardTitle.textContent = item.title || 'Untitled Slide';
       billboardText.textContent = item.title || 'Untitled Slide';
@@ -1672,16 +1695,21 @@
     function renderGallery() {
       const grid = document.getElementById('inlineGalleryGrid');
       if (!grid) return;
-      const cards = idleSlides.map(img => `
-        <div class="image-card">
-          <img src="${escapeHtml(resolveMediaUrl(img.src))}" alt="${escapeHtml(img.title)}">
-          <button class="delete-x" onclick="askDeleteImage('${escapeHtml(img.id)}')">×</button>
+      const cards = idleSlides.map(img => {
+        const imageOnly = img.showCaption === false;
+        const caption = imageOnly ? '' : `
           <div class="image-meta">
             <div class="image-name">${escapeHtml(img.title || 'Untitled Slide')}</div>
             <div class="image-desc">${escapeHtml(img.description || '')}</div>
-          </div>
-        </div>
-      `).join('');
+          </div>`;
+        return `
+        <div class="image-card">
+          <img src="${escapeHtml(resolveMediaUrl(img.src))}" alt="${escapeHtml(imageOnly ? 'Idle image' : (img.title || 'Idle slide'))}">
+          <button class="delete-x" onclick="askDeleteImage('${escapeHtml(img.id)}')">×</button>
+          <button type="button" class="caption-toggle" onclick="setSlideCaption('${escapeHtml(img.id)}', ${imageOnly ? 'true' : 'false'})">${imageOnly ? 'Show name' : 'Hide name'}</button>
+          ${caption}
+        </div>`;
+      }).join('');
 
       grid.innerHTML = cards + `
         <div class="add-card" onclick="openUploadModal()">
@@ -1693,17 +1721,47 @@
       `;
     }
 
+    function toggleImageCaptionFields() {
+      const imageOnly = document.getElementById('imageOnlyToggle').checked;
+      const fields = document.getElementById('captionFields');
+      if (fields) fields.hidden = imageOnly;
+    }
+
     function openUploadModal() {
       document.getElementById('newSlideType').value = '';
       document.getElementById('newImageTitle').value = '';
       document.getElementById('newImageDesc').value = '';
       document.getElementById('newIdleImageFile').value = '';
+      const imageOnly = document.getElementById('imageOnlyToggle');
+      if (imageOnly) imageOnly.checked = true;
+      toggleImageCaptionFields();
       hideInputError('imageUploadError');
       document.getElementById('uploadImageModal').classList.add('show');
     }
 
     function closeUploadModal() {
       document.getElementById('uploadImageModal').classList.remove('show');
+    }
+
+    async function setSlideCaption(id, show) {
+      try {
+        const res = await fetch(apiUrl(IDLE_SLIDES_API + '/' + encodeURIComponent(id)), {
+          method: 'PATCH',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          credentials: 'include',
+          body: JSON.stringify({ showCaption: !!show })
+        });
+        if (!res.ok) throw new Error(res.status === 401 ? 'Unauthorized. Please log in again.' : 'Could not update this slide.');
+        const saved = await res.json();
+        const index = idleSlides.findIndex(img => String(img.id) === String(id));
+        if (index >= 0) idleSlides[index] = { ...idleSlides[index], ...saved };
+        renderGallery();
+        updateIdleSlide();
+        showToast(show ? 'Name will show on this slide' : 'Name hidden. The idle screen will show only the image.');
+      } catch (err) {
+        console.error(err);
+        showToast(err.message || 'Could not update this slide');
+      }
     }
 
     async function uploadIdleImage() {
@@ -1715,8 +1773,13 @@
         return;
       }
 
-      const title = document.getElementById('newImageTitle').value.trim() || file.name.replace(/\.[^/.]+$/, '');
-      const description = document.getElementById('newImageDesc').value.trim() || 'A fresh image for the idle background.';
+      const imageOnly = document.getElementById('imageOnlyToggle').checked;
+      const title = imageOnly
+        ? file.name.replace(/\.[^/.]+$/, '')
+        : (document.getElementById('newImageTitle').value.trim() || file.name.replace(/\.[^/.]+$/, ''));
+      const description = imageOnly
+        ? ''
+        : (document.getElementById('newImageDesc').value.trim() || 'A fresh image for the idle background.');
       const type = (document.getElementById('newSlideType').value.trim() || 'event').toLowerCase();
 
       const formData = new FormData();
@@ -1724,6 +1787,7 @@
       formData.append('title', title);
       formData.append('description', description);
       formData.append('type', type);
+      formData.append('showCaption', imageOnly ? '0' : '1');
 
       try {
         const res = await fetch(apiUrl(IDLE_SLIDES_API), {

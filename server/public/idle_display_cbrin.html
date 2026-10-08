@@ -183,12 +183,14 @@
       a.style.backgroundImage = ''; b.style.backgroundImage = '';
       return;
     }
-    emptyState.classList.add('hidden'); copyBox.classList.remove('hidden');
+    emptyState.classList.add('hidden');
     index = (i + slides.length) % slides.length;
     const slide = slides[index];
     const target = usingA ? b : a;
     const current = usingA ? a : b;
     target.style.backgroundImage = `url("${imageUrl(slide.src)}")`;
+    const showCaption = slide.showCaption !== false;
+    copyBox.classList.toggle('hidden', !showCaption);
     titleText.textContent = slide.title || 'CBRIN Event Space';
     descText.textContent = slide.description || '';
     typeText.textContent = (slide.type || 'CBRIN').toUpperCase();

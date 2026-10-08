@@ -21,6 +21,7 @@ function serialize(row) {
     uploadedAt: row.uploaded_at,
     displayOrder: row.display_order,
     isActive: !!row.is_active,
+    showCaption: row.show_caption == null ? true : !!row.show_caption,
   };
 }
 
@@ -50,16 +51,19 @@ router.post(
     const src = `/uploads/${storedName}`;
     const title =
       String(req.body.title || path.basename(req.file.originalname, path.extname(req.file.originalname)) || 'Untitled Slide').trim();
-    const description = String(req.body.description || 'A backend stored idle slide.').trim();
+    const showCaption = !['0', 'false', 'off', 'no'].includes(String(req.body.showCaption ?? '1').trim().toLowerCase());
+    const description = showCaption
+      ? String(req.body.description || 'A backend stored idle slide.').trim()
+      : '';
     const type = String(req.body.type || 'event').trim().toLowerCase();
     const uploadedAt = new Date().toISOString();
 
     getDb()
       .prepare(
-        `INSERT INTO idle_slides (id, type, title, description, src, file_name, uploaded_at, display_order, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1)`
+        `INSERT INTO idle_slides (id, type, title, description, src, file_name, uploaded_at, display_order, is_active, show_caption)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?)`
       )
-      .run(id, type, title, description, src, req.file.originalname, uploadedAt);
+      .run(id, type, title, description, src, req.file.originalname, uploadedAt, showCaption ? 1 : 0);
 
     getDb()
       .prepare(`INSERT INTO audit_logs (actor, action, detail) VALUES (?, 'idle_slide_create', ?)`)
@@ -70,10 +74,27 @@ router.post(
       type,
       title,
       description,
+      showCaption,
       src,
       fileName: req.file.originalname,
       uploadedAt,
     });
+  })
+);
+
+router.patch(
+  '/:id',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const id = decodeURIComponent(req.params.id);
+    const db = getDb();
+    const target = db.prepare(`SELECT * FROM idle_slides WHERE id = ?`).get(id);
+    if (!target) return res.status(404).json({ ok: false, error: 'Slide not found.' });
+    const raw = req.body?.showCaption;
+    const showCaption = !(raw === false || raw === 0 || raw === '0' || raw === 'false');
+    db.prepare(`UPDATE idle_slides SET show_caption = ? WHERE id = ?`).run(showCaption ? 1 : 0, id);
+    const row = db.prepare(`SELECT * FROM idle_slides WHERE id = ?`).get(id);
+    res.json(serialize(row));
   })
 );
 
