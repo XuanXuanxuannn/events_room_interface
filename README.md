@@ -73,7 +73,7 @@ LIBREOFFICE_BIN=/Applications/LibreOffice.app/Contents/MacOS/soffice
 LIBREOFFICE_BIN=soffice
 ```
 
-Upload size limit defaults to `MAX_UPLOAD_MB=30` (configurable in `.env`). Prefer uploading PDF when possible.
+Upload size limit defaults to `MAX_UPLOAD_MB=100` (configurable in `.env`). Prefer uploading PDF when possible.
 
 More detail: [`server/README.md`](server/README.md) and [`server/deploy/DEPLOY.md`](server/deploy/DEPLOY.md).
 
